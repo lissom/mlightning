@@ -5,4 +5,3 @@ run-cr-update
 .sconsign.dblite
 SConfig.pyc
 .pydevproject
-/SConfig.py
