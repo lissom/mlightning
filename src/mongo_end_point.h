@@ -32,7 +32,7 @@ namespace tools {
         struct MongoEndPointSettings {
             bool startImmediate;
             bool directLoad;
-            size_t batchSize;
+            size_t maxQueueSize;
             size_t threadCount;
             size_t sleepTime;
         };
@@ -48,7 +48,7 @@ namespace tools {
         public:
             BasicMongoEndPoint(MongoEndPointSettings settings, std::string connStr) :
                     _threadPool(settings.threadCount),
-                    _opQueue(settings.batchSize),
+                    _opQueue(settings.maxQueueSize),
                     _sleepTime(settings.sleepTime),
                     _threadCount(settings.threadCount)
             {

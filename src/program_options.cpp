@@ -84,7 +84,7 @@ namespace loader {
             ("queuing,q", po::value<std::string>(&settings.loadQueueJson)->default_value("\"direct\":2"),
                     supportedLoadStrategies.c_str())
             ("load.batchSize", po::value<long unsigned int>(&settings.batcherSettings.queueSize)
-                    ->default_value(10000), "Read queue size")
+                    ->default_value(1000), "Read queue size")
             ("load.inputThreads,t", po::value<int>(&settings.threads)
                     ->default_value(0), "threads, 0 for auto limit, "
                     "-x for a limit from the max hardware threads(default: 0)")
@@ -95,8 +95,8 @@ namespace loader {
                     ->default_value(10000), "load queue size to pass on to dispatcher")
             ("mongo.writeConcern,w", po::value<int>(&settings.dispatchSettings.writeConcern)
                     ->default_value(0), "write concern, # of nodes")
-            ("mongo.batchSize", po::value<size_t>(&settings.endPointSettings.batchSize)
-                    ->default_value(10), "batch size of bson array to send to the driver")
+            ("mongo.batchMaxQueue", po::value<size_t>(&settings.endPointSettings.maxQueueSize)
+                    ->default_value(100), "Maximum queue size for an endpoint before halting read threads")
             ("mongo.syncDelay", po::value<int>(&settings.syncDelay)
                     ->default_value(-1), "NOT YET IMPLEMENTED") //reserving S
             ("mongo.threads,e", po::value<size_t>(&settings.endPointSettings.threadCount)
