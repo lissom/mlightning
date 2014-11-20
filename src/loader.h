@@ -54,6 +54,7 @@ namespace loader {
         public:
             using FieldKeys = std::vector<std::string>;
             std::string statsFile;
+            std::string statsFileNote;
             std::string loadDir;
             std::string fileRegex;
             std::string inputType;

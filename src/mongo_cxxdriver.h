@@ -28,5 +28,6 @@ namespace mongo {
      */
     const std::string uriStart = "mongodb://";
     using Cursor = std::unique_ptr<mongo::DBClientCursor>;
+    using Connection = std::unique_ptr<mongo::DBClientConnection>;
 }  //namespace mongo
 

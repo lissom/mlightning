@@ -48,8 +48,9 @@ namespace loader {
                 loader::Loader::Settings::inputTypesPretty();
         generic.add_options()
             ("help,h", "print this help message")
-            ("statFile,S", po::value<std::string>(&settings.statsFile),
+            ("record.statFile,S", po::value<std::string>(&settings.statsFile),
                     "will output csv run summary to this file")
+            ("record.note", po::value<std::string>(&settings.statsFileNote), "note in final stats file column")
             //TODO:log file
             /*("logFile,l", po::value<std::string>(),
                     "logFile - NOT YET IMPLEMENTED")*/

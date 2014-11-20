@@ -308,6 +308,7 @@ namespace loader {
                         << "\"queue size\","
                         << "\"threads\","
                         << "\"endpoint conns\""
+                        << "\"note\""
                 << std::endl;
             }
             statsfile << "\"" << timerLoad.seconds() << "\","
@@ -319,6 +320,7 @@ namespace loader {
                     << "\"" << _settings.batcherSettings.queueSize << "\","
                     << "\"" << _settings.threads << "\","
                     << "\"" << _settings.endPointSettings.threadCount << "\""
+                    << "\"" << _settings.statsFileNote << "\""
                     << std::endl;
             }
             catch (const std::exception &e) {
