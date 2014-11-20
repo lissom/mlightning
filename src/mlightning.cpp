@@ -21,7 +21,7 @@
 
 
 int main(int argc, char* argv[]) {
-    int returnValue = 0;
+    int returnValue = EXIT_SUCCESS;
     tools::SimpleTimer<> totalTimer;
     //C++ Driver
     mongo::client::initialize();
@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
         settings.process();
     } catch (std::exception &e) {
        std::cerr << "Unable to process settings: " << e.what() << std::endl;
-       return 1;
+       return EXIT_FAILURE;
     }
 
     std::cout << "init finished" << std::endl;
@@ -45,12 +45,12 @@ int main(int argc, char* argv[]) {
             loader.run();
         } catch (std::exception &e) {
             std::cerr << "Failure executing loader: " << e.what() << std::endl;
-            returnValue = 1;
+            returnValue = EXIT_FAILURE;
         }
 
     } catch (std::exception &e) {
         std::cerr << "Unable to initialize: " << e.what() << std::endl;
-        return 1;
+        return EXIT_FAILURE;
     }
 
     totalTimer.stop();
