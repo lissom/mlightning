@@ -311,16 +311,16 @@ namespace loader {
                         << "\"note\""
                 << std::endl;
             }
-            statsfile << "\"" << timerLoad.seconds() << "\","
-                    << "\"" << loadSeconds / 60 << "m" << loadSeconds % 60 << "s" << "\","
-                    << "\"" << _settings.endPointSettings.directLoad << "\","
-                    << "\"" << _settings.inputType << "\","
-                    << "\"" << timerRead.seconds() << "\","
-                    << "\"" << _settings.shardKeyJson << "\","
-                    << "\"" << _settings.loadQueueJson << "\","
-                    << "\"" << _settings.batcherSettings.queueSize << "\","
-                    << "\"" << _settings.threads << "\","
-                    << "\"" << _settings.endPointSettings.threadCount << "\","
+            statsfile << "\"" << timerLoad.seconds() << "\", "
+                    << "\"" << loadSeconds / 60 << "m" << loadSeconds % 60 << "s" << "\", "
+                    << "\"" << _settings.endPointSettings.directLoad << "\", "
+                    << "\"" << _settings.inputType << "\", "
+                    << "\"" << timerRead.seconds() << "\", "
+                    << "\"" << _settings.shardKeyJson << "\", "
+                    << "\"" << _settings.loadQueueJson << "\", "
+                    << "\"" << _settings.batcherSettings.queueSize << "\", "
+                    << "\"" << _settings.threads << "\", "
+                    << "\"" << _settings.endPointSettings.threadCount << "\", "
                     << "\"" << _settings.statsFileNote << "\""
                     << std::endl;
             }
