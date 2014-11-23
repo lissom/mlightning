@@ -149,21 +149,45 @@ namespace tools {
         _pool._workLoop();
     }
 
+    /**
+     * Wait queue.  If the queue is empty consumers wait, if it is at the max producers wait.
+     *
+     * A single signal is used, only consumers or producers should be waiting.
+     */
     template<typename Value>
     class WaitQueue {
     public:
         WaitQueue(size_t queueMaxSize) : _queueMaxSize(queueMaxSize) {}
 
+        /**
+         * Puts a value on the queue.
+         * If we are at zero values initially notify the consumers
+         * To guard against producers being slow notify all is ran on size 2, on size one
+         * only notify one is ran.
+         */
         void push(Value &&value) {
             MutexUniqueLock lock(_mutex);
             if (!full()) {
+                auto queueSize = _queue.size();
                 _queue.emplace(value);
+                //If there is only one element notify all waiters
+                if (queueSize == 0)
+                    _queueNotify.notify_one();
+                else if (queueSize == 1)
+                    _queueNotify.notify_all();
                 return;
             }
             _queueNotify.wait(lock, [this]() {return !this->full();});
             _queue.emplace(value);
         }
 
+        /**
+         * Pops a value.  If there are no values forces a wait.
+         * If things backup we assume that generally they'll stay that way, so notify one thread
+         * however, just in case that isn't the case we notify all threads on 1 away from the limit
+         * This should get called on the way up but be harmless (hopefully we don't synchronize
+         * around 1 off the limit)
+         */
         bool pop(Value& value) {
             MutexUniqueLock lock(_mutex);
             //Wait for the queue to be non-empty, should only break for an empty queue on exit
@@ -171,6 +195,11 @@ namespace tools {
             if (_queue.empty())
                 return false;
             value = _queue.front();
+            auto tolimit = _queueMaxSize - _queue.size();
+            if (tolimit == 0)
+                _queueNotify.notify_one();
+            else if (tolimit == 1)
+                _queueNotify.notify_all();
             _queue.pop();
             return true;
         }
