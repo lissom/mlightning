@@ -237,6 +237,7 @@ namespace loader {
          */
         std::cout << "Threads: " << _settings.threads << " RAM(Mb): "
                   << _ramMax / 1024 / 1024 << "\nStarting setup"
+                  << "\nStarting read of data"
                   << std::endl;
 
 
