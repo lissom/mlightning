@@ -262,6 +262,7 @@ namespace loader {
             }
 
             void push(BsonV* q) {
+                std::sort(q->begin(), q->end(), tools::BSONObjCmp(owner()->sortIndex()));
                 send(q);
                 //TODO: remove this check
                 if (!started) {
