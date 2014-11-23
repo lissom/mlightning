@@ -319,7 +319,7 @@ namespace loader {
                     << "\"" << _settings.shardKeyJson << "\","
                     << "\"" << _settings.batcherSettings.queueSize << "\","
                     << "\"" << _settings.threads << "\","
-                    << "\"" << _settings.endPointSettings.threadCount << "\""
+                    << "\"" << _settings.endPointSettings.threadCount << "\","
                     << "\"" << _settings.statsFileNote << "\""
                     << std::endl;
             }
