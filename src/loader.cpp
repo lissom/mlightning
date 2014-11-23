@@ -72,7 +72,6 @@ namespace loader {
         dispatchSettings.workPath = workPath;
         dispatchSettings.directLoad = endPointSettings.directLoad;
 
-        std::cout << loadQueueJson << std::endl;
         loadQueueBson = mongo::fromjson(loadQueueJson);
         for (mongo::BSONObj::iterator i(loadQueueBson); i.more();) {
             mongo::BSONElement load = i.next();
@@ -305,6 +304,7 @@ namespace loader {
                         << "\"type\","
                         << "\"input time(s)\","
                         << "\"key\","
+                        << "\"queuing\","
                         << "\"queue size\","
                         << "\"threads\","
                         << "\"endpoint conns\""
@@ -317,6 +317,7 @@ namespace loader {
                     << "\"" << _settings.inputType << "\","
                     << "\"" << timerRead.seconds() << "\","
                     << "\"" << _settings.shardKeyJson << "\","
+                    << "\"" << _settings.loadQueueJson << "\","
                     << "\"" << _settings.batcherSettings.queueSize << "\","
                     << "\"" << _settings.threads << "\","
                     << "\"" << _settings.endPointSettings.threadCount << "\","
