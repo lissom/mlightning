@@ -64,7 +64,7 @@ namespace loader {
         using LocSegmentQueue = tools::ConcurrentQueue<tools::LocSegment>;
         LocSegmentQueue _locSegmentQueue;
         tools::LocSegMapping _locSegMapping;
-        std::atomic<std::size_t> _processedSegments;
+        std::atomic<std::size_t> _processedSegments{};
         std::unique_ptr<tools::ThreadPool> _tpInput;
 
         Loader* const _owner;
