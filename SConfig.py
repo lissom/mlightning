@@ -2,14 +2,14 @@
 SCONS_OPTIONS = {'num_jobs':'8'}
 DECIDER = 'MD5'
 COMP_INCLUDES_INTO_CCFLAGS = False
-BUILD_ARTIFACT_NAME = 'mload'
+BUILD_ARTIFACT_NAME = 'mlightning'
 PROJECT_TYPE = 'exe'
 BUILD_CONFIGURATION = 'Debug'
 TOOLCHAIN_NAME = 'linux gcc'
 C_FLAGS = '-O0 -g3 -Wall -c -fmessage-length=0'
 CXX_FLAGS = '-std=c++0x -O0 -g3 -p -Wall -c -fmessage-length=0'
 COMPILER_NAME = 'g++'
-PROJECT_NAME = 'mload'
+PROJECT_NAME = 'mlightning'
 INCLUDES = []
 LIBRARIES = ['tcmalloc', 'mongoclient', 'boost_program_options', 'boost_system', 'boost_regex', 'boost_thread', 'boost_chrono', 'boost_filesystem']
 LIBRARY_PATHS = []
