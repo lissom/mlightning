@@ -90,6 +90,8 @@ namespace loader {
                     sendQueue.reserve(queueSize);
                 }
             }
+            if (sendQueue.size())
+                send(&sendQueue);
         }
     }
 }  //namespace loader
