@@ -308,7 +308,7 @@ namespace loader {
                         << "\"queuing\","
                         << "\"queue size\","
                         << "\"threads\","
-                        << "\"endpoint conns\""
+                        << "\"endpoint conns\","
                         << "\"note\""
                 << std::endl;
             }
