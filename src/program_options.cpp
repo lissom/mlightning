@@ -101,17 +101,15 @@ namespace loader {
                     ->default_value(0), "write concern, # of nodes")
             ("mongo.batchMaxQueue", po::value<size_t>(&settings.endPointSettings.maxQueueSize)
                     ->default_value(100), "Maximum queue size for an endpoint before halting read threads")
-            ("mongo.syncDelay", po::value<int>(&settings.syncDelay)
-                    ->default_value(-1), "NOT YET IMPLEMENTED") //reserving S
             ("mongo.threads,e", po::value<size_t>(&settings.endPointSettings.threadCount)
                     ->default_value(2), "threads per end point")
             ("mongo.LocklessMissWait", po::value<size_t>(&settings.endPointSettings.sleepTime)
                     ->default_value(10), "Wait time for mongo connections with a lockless miss method")
             ("mongo.sharded,s", po::value<bool>(&settings.sharded)->default_value(true), "Used a sharded setup")
             ;
-        cmdline.add_options()
+        /*cmdline.add_options()
             ("config", po::value<std::string>(), "config file - NOT YET IMPLEMENTED")
-            ;
+            ;*/
         cmdline.add(generic);
         po::variables_map vm;
         std::string errormsg;
