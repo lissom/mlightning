@@ -19,7 +19,19 @@
 #include "program_options.h"
 #include "tools.h"
 
-
+/**
+ * Main todo:
+ * C old new style bulk load (retest sorting 1st, if it works insert sorted, but don't sort bsonobj)
+ * # auth
+ * # non-shoot out mode (continue on error)
+ * # support mongoS string (or old style)
+ * # compression
+ * # disk queues
+ * # _id optimizations (drop, insert at end point, etc)
+ * # moving index fields forward
+ * # transforms
+ * # support M to N moves
+ */
 int main(int argc, char* argv[]) {
     int returnValue = EXIT_SUCCESS;
     tools::SimpleTimer<> totalTimer;

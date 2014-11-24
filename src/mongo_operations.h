@@ -136,8 +136,8 @@ namespace tools {
         /**
          * Bulk insert operation.  Unordered.
          */
-        struct OpQueueBulkInsertUnordered : public DbOp {
-            OpQueueBulkInsertUnordered(std::string ns,
+        struct OpQueueBulkInsertUnorderedv24_0 : public DbOp {
+            OpQueueBulkInsertUnorderedv24_0(std::string ns,
                                        DataQueue* data,
                                        int flags = 0,
                                        const WriteConcern* wc = DEFAULT_WRITE_CONCERN);
@@ -152,8 +152,31 @@ namespace tools {
                                     int flags = 0,
                                     const WriteConcern* wc = DEFAULT_WRITE_CONCERN)
             {
-                return DbOpPointer(new OpQueueBulkInsertUnordered(ns, data, flags, wc));
+                return DbOpPointer(new OpQueueBulkInsertUnorderedv24_0(ns, data, flags, wc));
             }
         };
+
+        struct OpQueueBulkInsertUnorderedv26_0 : public DbOp {
+            OpQueueBulkInsertUnorderedv26_0(std::string ns,
+                                       DataQueue* data,
+                                       int flags = 0,
+                                       const WriteConcern* wc = DEFAULT_WRITE_CONCERN);
+            OpReturnCode run(Connection* conn);
+            std::string _ns;
+            DataQueue _data;
+            int _flags;
+            const WriteConcern* _wc;
+            mongo::WriteResult _writeResult;
+
+            static DbOpPointer make(std::string ns,
+                                    DataQueue* data,
+                                    int flags = 0,
+                                    const WriteConcern* wc = DEFAULT_WRITE_CONCERN)
+            {
+                return DbOpPointer(new OpQueueBulkInsertUnorderedv26_0(ns, data, flags, wc));
+            }
+        };
+
+
     }  //namespace mtools
 }  //namespace tools

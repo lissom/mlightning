@@ -41,9 +41,11 @@ namespace loader {
         namespace po = boost::program_options;
         po::options_description generic("Generic");
         po::options_description cmdline("Command Line");
-        const std::string supportedLoadStrategies = "BSON doc of queuing to use: '{\"direct\": 6, "
-                "\"ram\": 2}'\nCurrently supported: "
-                + loader::docbuilder::ChunkBatchFactory::getKeysPretty();
+        const std::string supportedLoadStrategies = "BSON doc of queuing *per shard* to use: '{\"direct\": 98, "
+                "\"ram\": 2}'"
+                "\nNote that presplits for very large numbers can be lengthy(i.e. over 100)!  Total splits = sum of queues * number of shards"
+                "\nCurrently supported: "
+                + loader::docbuilder::ChunkBatchFactory::getKeysPretty() + "\nDirect between 10 and 100 is recommended";
         const std::string supportedInputTypes = "Input types: " +
                 loader::Loader::Settings::inputTypesPretty();
         generic.add_options()
@@ -67,7 +69,7 @@ namespace loader {
             ("db,d", po::value<std::string>(&settings.database)->required(), "database")
             ("coll,c", po::value<std::string>(&settings.collection)->required(), "collection")
             ("directLoad,D", po::value<bool>(&settings.endPointSettings.directLoad)
-                    ->default_value(false), "Directly load into mongoD, bypass mongoS")
+                    , "Directly load into mongoD, bypass mongoS")
             ("dropDb", po::value<bool>(&settings.dropDb)->default_value(false),
                     "DANGER: Drop the database")
             ("dropColl", po::value<bool>(&settings.dropColl)->default_value(false),
@@ -81,7 +83,7 @@ namespace loader {
                     "Is the shard key unique")
             ("add_id", po::value<bool>(&settings.add_id)->default_value(true),
                     "Add _id if it doesn't exist, operations will error if _id is required")
-            ("queuing,q", po::value<std::string>(&settings.loadQueueJson)->default_value("\"direct\":2"),
+            ("queuing,q", po::value<std::string>(&settings.loadQueueJson)->default_value("\"direct\":10"),
                     supportedLoadStrategies.c_str())
             ("load.batchSize", po::value<long unsigned int>(&settings.batcherSettings.queueSize)
                     ->default_value(1000), "Read queue size")
@@ -93,6 +95,8 @@ namespace loader {
             ("dispatch.ramQueueBatchSize,B",
                     po::value<size_t>(&settings.dispatchSettings.ramQueueBatchSize)
                     ->default_value(10000), "load queue size to pass on to dispatcher")
+            ("mongo.bulkWriteVersion", po::value<int>(&settings.dispatchSettings.bulkWriteVersion)
+                    ->default_value(1), "Write protocol to use: 0 = 2.4; 1 = 2.6")
             ("mongo.writeConcern,w", po::value<int>(&settings.dispatchSettings.writeConcern)
                     ->default_value(0), "write concern, # of nodes")
             ("mongo.batchMaxQueue", po::value<size_t>(&settings.endPointSettings.maxQueueSize)

@@ -29,5 +29,12 @@ namespace mongo {
     const std::string uriStart = "mongodb://";
     using Cursor = std::unique_ptr<mongo::DBClientCursor>;
     using Connection = std::unique_ptr<mongo::DBClientConnection>;
+    /*
+    std::ostream& operator<<(std::ostream& out, const std::vector<BSONObj>& bsonvec) {
+        for (auto&& ist: bsonvec)
+            out << tojson(ist) << "\n";
+        return out;
+    }
+    */
 }  //namespace mongo
 

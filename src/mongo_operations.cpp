@@ -33,18 +33,34 @@ namespace tools {
 
         namespace {
             //TODO: change error code impl to inspect and handle different codes
-            OpReturnCode CheckConnError(Connection* conn) {
+            OpReturnCode opCheckError(Connection* conn) {
                 //TODO: mongo::BSONObj le = GetLastErrorDetailed
                 std::string error = conn->getLastError();
                 if (!error.empty()) {
                     std::cerr << error << std::endl;
-                    throw std::logic_error("Write failed");
+                    return false;
                 }
                 return true;
             }
+            OpReturnCode opCheckError(const mongo::WriteResult& result) {
+                if (!result.hasErrors())
+                    return true;
+                if (result.hasWriteConcernErrors()) {
+                    std::cerr << "Write concern errors:\n";
+                    for (auto&& ist : result.writeConcernErrors())
+                        std::cerr << tojson(ist) << std::endl;
+                    std::cerr << std::endl;
+                }
+                if (result.hasWriteErrors()) {
+                    std::cerr << "Write concern errors:\n";
+                    for (auto&& ist : result.writeErrors())
+                        std::cerr << tojson(ist) << std::endl;
+                    std::cerr << std::endl;                }
+                return false;
+            }
         }
 
-        OpQueueBulkInsertUnordered::OpQueueBulkInsertUnordered(std::string ns,
+        OpQueueBulkInsertUnorderedv24_0::OpQueueBulkInsertUnorderedv24_0(std::string ns,
                                                                DataQueue* data,
                                                                int flags,
                                                                const WriteConcern* wc) :
@@ -52,10 +68,27 @@ namespace tools {
         {
         }
 
-        OpReturnCode OpQueueBulkInsertUnordered::run(Connection* conn) {
+        OpReturnCode OpQueueBulkInsertUnorderedv24_0::run(Connection* conn) {
             conn->insert(_ns, _data, _flags, _wc);
             if (!_wc || !_wc->requiresConfirmation()) return true;
-            return CheckConnError(conn);
+            return opCheckError(conn);
+        }
+
+        OpQueueBulkInsertUnorderedv26_0::OpQueueBulkInsertUnorderedv26_0(std::string ns,
+                                                                       DataQueue* data,
+                                                                       int flags,
+                                                                       const WriteConcern* wc) :
+                _ns(std::move(ns)), _data(std::move(*data)), _flags(flags), _wc(wc)
+        {
+        }
+
+        //TODO: move this further up the stack if possible
+        OpReturnCode OpQueueBulkInsertUnorderedv26_0::run(Connection* conn) {
+            auto bulker = conn->initializeUnorderedBulkOp(_ns);
+            for (auto&& itr: _data)
+                bulker.insert(itr);
+            bulker.execute(_wc, &_writeResult);
+            return opCheckError(_writeResult);
         }
     }
 }  //namespace mtools

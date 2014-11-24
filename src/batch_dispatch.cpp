@@ -26,7 +26,8 @@ namespace loader {
                 &RAMQueueDispatch::create);
 
         AbstractChunkDispatch::AbstractChunkDispatch(Settings settings) :
-                _settings(std::move(settings))
+                _settings(std::move(settings)),
+                _bulkWriteVersion(_settings.owner->bulkWriteVersion())
         {
             if (_settings.owner->directLoad()) _ep = _settings.owner->getEndPointForChunk(_settings
                     .chunkUB);

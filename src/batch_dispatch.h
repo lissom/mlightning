@@ -95,6 +95,7 @@ namespace loader {
         private:
             Settings _settings;
             EndPoint *_ep;
+            const int _bulkWriteVersion;
         };
 
         /**
@@ -138,6 +139,7 @@ namespace loader {
                 size_t ramQueueBatchSize;
                 std::string workPath;
                 size_t workThreads;
+                int bulkWriteVersion;
             };
 
 
@@ -221,6 +223,10 @@ namespace loader {
                 return &_wc;
             }
 
+            const int bulkWriteVersion() const {
+                return _settings.bulkWriteVersion;
+            }
+
             /**
              * Queues a task in the thread pool associated with this queue
              * Will be used for disk queues
@@ -243,11 +249,18 @@ namespace loader {
 
         };
 
+        //TODO: create a protocol version map, but given I'm not sure about the args right now..
         inline void AbstractChunkDispatch::send(tools::mtools::DataQueue* q) {
-            endPoint()->push(tools::mtools::OpQueueBulkInsertUnordered::make(owner()->ns(),
-                                                                           q,
-                                                                           0,
-                                                                           owner()->writeConcern()));
+            switch(_bulkWriteVersion) {
+            case 0 : endPoint()->push(tools::mtools::OpQueueBulkInsertUnorderedv24_0::make(
+                owner()->ns(), q, 0, owner()->writeConcern()));
+            break;
+            case 1: endPoint()->push(tools::mtools::OpQueueBulkInsertUnorderedv26_0::make(
+                owner()->ns(), q, 0, owner()->writeConcern()));
+            break;
+            default :
+                std::logic_error("Unknown bulk write protocol version");
+            }
         }
 
         /**
