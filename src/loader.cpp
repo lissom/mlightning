@@ -309,6 +309,7 @@ namespace loader {
                         << "\"queue size\","
                         << "\"threads\","
                         << "\"endpoint conns\","
+                        << "\"wc\","
                         << "\"note\""
                 << std::endl;
             }
@@ -322,6 +323,7 @@ namespace loader {
                     << "\"" << _settings.batcherSettings.queueSize << "\", "
                     << "\"" << _settings.threads << "\", "
                     << "\"" << _settings.endPointSettings.threadCount << "\", "
+                    << "\"" << _settings.dispatchSettings.writeConcern << "\", "
                     << "\"" << _settings.statsFileNote << "\""
                     << std::endl;
             }
