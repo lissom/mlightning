@@ -96,7 +96,7 @@ namespace loader {
                     po::value<size_t>(&settings.dispatchSettings.ramQueueBatchSize)
                     ->default_value(10000), "load queue size to pass on to dispatcher")
             ("mongo.bulkWriteVersion", po::value<int>(&settings.dispatchSettings.bulkWriteVersion)
-                    ->default_value(1), "Write protocol to use: 0 = 2.4; 1 = 2.6")
+                    ->default_value(0), "Write protocol to use: 0 = 2.4; 1 = 2.6\nNote that 2.6 bulk operations are around 3.5x slower")
             ("mongo.writeConcern,w", po::value<int>(&settings.dispatchSettings.writeConcern)
                     ->default_value(0), "write concern, # of nodes")
             ("mongo.batchMaxQueue", po::value<size_t>(&settings.endPointSettings.maxQueueSize)
