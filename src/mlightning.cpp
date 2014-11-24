@@ -21,7 +21,7 @@
 
 /**
  * Main todo:
- * C old new style bulk load (retest sorting 1st, if it works insert sorted, but don't sort bsonobj)
+ * C allow self sharded collections again
  * # auth
  * # non-shoot out mode (continue on error)
  * # support mongoS string (or old style)

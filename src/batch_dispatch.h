@@ -278,10 +278,6 @@ namespace loader {
                 std::sort(q->begin(), q->end(), tools::BSONObjCmp(owner()->sortIndex()));
                 send(q);
                 //TODO: remove this check
-                if (!started) {
-                    started = true;
-                    std::cout << "1st push for this direct queue" << std::endl;
-                }
                 assert(q->empty());
             }
 
@@ -304,7 +300,6 @@ namespace loader {
             }
         private:
             static const bool factoryRegisterCreator;
-            bool started = false;
         };
 
         /**

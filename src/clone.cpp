@@ -37,6 +37,7 @@ namespace cloner {
     //TODO: Persist state information in the new cluster
     //TODO: Options: drop databases, balancer wait
     void Clone::run() {
+/*
         if (!_target.stopBalancerWait(std::chrono::seconds(60))) {
             std::cerr << "Unable to stop target balancer" << std::endl;
             exit(EXIT_FAILURE);
@@ -132,7 +133,7 @@ namespace cloner {
         //TODO: replace this with stopping mongoS to ensure it won't try to balance any collections
         //i.e. db.shutdownServer()
         std::this_thread::sleep_for(std::chrono::seconds(3));
-
+*/
     }
 
 } /* namespace Clone */
