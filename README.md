@@ -1,4 +1,4 @@
-# mlightning
+# mLightning
 
 mLightning
 ----------
@@ -32,11 +32,15 @@ sudo ln -s libtcmalloc.so.4 libtcmalloc.so```
 To compile and install the mongo C++ driver (assuming installing into /usr/local is desired): <br>
 ```git clone https://github.com/mongodb/mongo-cxx-driver.git
 cd mongo-cxx-driver
-sudo scons -j16 --opt=on --c++11 --prefix=/usr/local install
-```
+sudo scons -j16 --opt=on --c++11 --prefix=/usr/local install```
 
+#### mLightning
 To compile mlightning (with tcmalloc): <br>
 ```scons --allocator=tcmalloc```
+
+#### Help
+```./mlightning -h```
+
 
 Disclaimer
 ----------
