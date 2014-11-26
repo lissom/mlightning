@@ -8,7 +8,7 @@ mlightning is a tool designed to quick load data into [MongoDB](http://www.mongo
 Written in C++, it requires the following to compile:
 * C++11 support
 * mongo-cxx-driver using the legacy branch, -std=c++11 is required.
-* boost - program options, system, regex, thread, chrono and filesystem.  Boost 1.55+ in known to work, earlier versions may
+* boost - program options, system, regex, thread, chrono and filesystem.  Boost 1.55 in known to work, earlier versions may work, but this hasn't been tested.
 * scons (and therefore python)
 * tcmalloc (optional)
 
@@ -38,7 +38,7 @@ To compile and install the mongo C++ driver (assuming installing into /usr/local
 #### mLightning
 	scons
 	
-To compile mlightning (with tcmalloc):
+To compile mlightning with tcmalloc:
 
 	scons --allocator=tcmalloc
 
