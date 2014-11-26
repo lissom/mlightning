@@ -3,10 +3,10 @@
 mLightning
 ----------
 
-mlightning is a tool designed to quick load data into [MongoDB](http://www.mongodb.org) sharded clusters.
+mlightning is a tool designed to quickly load data into [MongoDB](http://www.mongodb.org) sharded clusters.
 
 Written in C++, it requires the following to compile:
-* C++11 support
+* C++11 support (gcc 4.8.2)
 * mongo-cxx-driver using the legacy branch, -std=c++11 is required.
 * boost - program options, system, regex, thread, chrono and filesystem.  Boost 1.55 in known to work, earlier versions may work, but this hasn't been tested.
 * scons (and therefore python)
