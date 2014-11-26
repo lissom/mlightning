@@ -15,31 +15,31 @@ Written in C++, it requires the following to compile:
 This program has been verified to compile on Ubuntu 14.04 with gcc 4.8.2 (standard on ubuntu)
 
 #### gcc on Ubuntu 14.04
-```sudo apt-get install gcc```
+	sudo apt-get install gcc
 
 #### tcmalloc on Ubuntu 14.04
-```sudo apt-get install libtcmalloc-minimal4
-cd /usr/lib
-sudo ln -s libtcmalloc.so.4 libtcmalloc.so```
+	sudo apt-get install libtcmalloc-minimal4
+	cd /usr/lib
+	sudo ln -s libtcmalloc.so.4 libtcmalloc.so```
 
 #### Scons on Ubuntu 14.04
-```sudo apt-get install scons duplicity```
+	sudo apt-get install scons duplicity```
 
 #### Boost on Ubuntu 14.04
-```sudo apt-get install libboost-all-dev```
+ 	sudo apt-get install libboost-all-dev
 
 #### MongoDB C++ Driver
-To compile and install the mongo C++ driver (assuming installing into /usr/local is desired): <br>
-```git clone https://github.com/mongodb/mongo-cxx-driver.git
-cd mongo-cxx-driver
-sudo scons -j16 --opt=on --c++11 --prefix=/usr/local install```
+To compile and install the mongo C++ driver (assuming installing into /usr/local is desired): <br
+	git clone https://github.com/mongodb/mongo-cxx-driver.git
+	cd mongo-cxx-driver
+	sudo scons -j16 --opt=on --c++11 --prefix=/usr/local install
 
 #### mLightning
 To compile mlightning (with tcmalloc): <br>
-```scons --allocator=tcmalloc```
+	scons --allocator=tcmalloc
 
 #### Help
-```./mlightning -h```
+	mlightning -h
 
 
 Disclaimer
