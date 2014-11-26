@@ -3,7 +3,7 @@
 mLightning
 ----------
 
-mlightning is a tool designed to quick load data into sharded clusters.
+mlightning is a tool designed to quick load data into [MongoDB](http://www.mongodb.org) sharded clusters.
 
 Written in C++, it requires the following to compile:
 * C++11 support
@@ -14,20 +14,21 @@ Written in C++, it requires the following to compile:
 
 This program has been verified to compile on Ubuntu 14.04 with gcc 4.8.2 (standard on ubuntu)
 
-gcc on Ubuntu 14.04: <br>
+#### gcc on Ubuntu 14.04
 ```sudo apt-get install gcc```
 
-tcmalloc on Ubuntu 14.04: <br>
+#### tcmalloc on Ubuntu 14.04
 ```sudo apt-get install libtcmalloc-minimal4
 cd /usr/lib
 sudo ln -s libtcmalloc.so.4 libtcmalloc.so```
 
-scons on Ubuntu 14.04: <br>
+#### Scons on Ubuntu 14.04
 ```sudo apt-get install scons duplicity```
 
-boost on Ubuntu 14.04: <br>
+#### Boost on Ubuntu 14.04
 ```sudo apt-get install libboost-all-dev```
 
+#### MongoDB C++ Driver
 To compile and install the mongo C++ driver (assuming installing into /usr/local is desired): <br>
 ```git clone https://github.com/mongodb/mongo-cxx-driver.git
 cd mongo-cxx-driver
@@ -36,3 +37,10 @@ sudo scons -j16 --opt=on --c++11 --prefix=/usr/local install
 
 To compile mlightning (with tcmalloc): <br>
 ```scons --allocator=tcmalloc```
+
+Disclaimer
+----------
+
+This software is not supported by [MongoDB, Inc.](http://www.mongodb.com) under any of their commercial support subscriptions or otherwise. Any usage of mtools is at your own risk. 
+Bug reports, feature requests and questions can be posted in the [Issues](https://github.com/rueckstiess/mtools/issues?state=open) section here on github. 
+
