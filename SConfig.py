@@ -4,10 +4,10 @@ DECIDER = 'MD5'
 COMP_INCLUDES_INTO_CCFLAGS = False
 BUILD_ARTIFACT_NAME = 'mlightning'
 PROJECT_TYPE = 'exe'
-BUILD_CONFIGURATION = 'Release'
+BUILD_CONFIGURATION = 'Debug'
 TOOLCHAIN_NAME = 'linux gcc'
-C_FLAGS = '-O3 -Wall -c -fmessage-length=0 -fomit-frame-pointer'
-CXX_FLAGS = '-std=c++0x -O3 -Wall -c -fmessage-length=0 -fomit-frame-pointer'
+C_FLAGS = '-O0 -g3 -Wall -c -fmessage-length=0'
+CXX_FLAGS = '-std=c++0x -O0 -g3 -p -Wall -c -fmessage-length=0'
 COMPILER_NAME = 'g++'
 PROJECT_NAME = 'mlightning'
 INCLUDES = []
