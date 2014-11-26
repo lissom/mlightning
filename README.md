@@ -46,5 +46,5 @@ Disclaimer
 ----------
 
 This software is not supported by [MongoDB, Inc.](http://www.mongodb.com) under any of their commercial support subscriptions or otherwise. Any usage of mtools is at your own risk. 
-Bug reports, feature requests and questions can be posted in the [Issues](https://github.com/rueckstiess/mtools/issues?state=open) section here on github. 
+Bug reports, feature requests and questions can be posted in the [Issues](https://github.com/lissom/mlightning/issues?state=open) section here on github. 
 
