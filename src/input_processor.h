@@ -50,13 +50,13 @@ namespace loader {
         /**
          * Do the work
          */
-        void run();
+        void run() override;
 
         /**
          * Returns when all input is finished
          * Calling this function before calling run is undefined
          */
-        void wait();
+        void wait() override;
 
     private:
         const bool allowInputSplits() const { return _inputType == "json"; }
@@ -67,7 +67,7 @@ namespace loader {
         std::atomic<std::size_t> _processedSegments{};
         std::unique_ptr<tools::ThreadPool> _tpInput;
 
-        Loader* const _owner;
+        Loader * const _owner;
         size_t _threads;
         const std::string _inputType;
         const std::string _loadDir;
