@@ -207,7 +207,7 @@ namespace loader {
                         _docShardKey = index.obj();
                     }
                 }
-                //TOOD: Consider continuing on errors or making it a setting
+                //TOOD: continue on error: convert to log message if continue
                 else throw std::logic_error("No shard key in doc");
             }
             //If hashing is required, do it

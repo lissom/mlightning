@@ -23,7 +23,7 @@
  * Main todo:
  * C allow self sharded collections again
  * # auth
- * # non-shoot out mode (continue on error)
+ * # continue on error (currently setup for shoot out mode)
  * # support mongoS string (or old style)
  * # compression
  * # disk queues
