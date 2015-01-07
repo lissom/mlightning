@@ -58,7 +58,7 @@ namespace loader {
                     "logFile - NOT YET IMPLEMENTED")*/
             ("inputType,T", po::value<std::string>(&settings.inputType)->default_value("json"),
                     supportedInputTypes.c_str())
-            ("loadPath,p", po::value<std::string>(&settings.loadDir)->required(),
+            ("loadPath,p", po::value<std::string>(&settings.inputConfigString)->required(),
                     "directory to load files from")
             ("fileRegex,r", po::value<std::string>(&settings.fileRegex),
                     "regular expression to match files on: (.*)(json)")

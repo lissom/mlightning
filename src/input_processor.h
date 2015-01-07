@@ -27,8 +27,6 @@ namespace loader {
      */
     class InputProcessor {
     public:
-        //Minimum average sized that needs to be exceeded for a split
-        static constexpr unsigned long long OVERAGE_SIZE = 100 * 1024 * 1024;
         virtual ~InputProcessor() {};
         virtual void run() = 0;
         virtual void wait() = 0;
@@ -40,6 +38,8 @@ namespace loader {
     //TODO: If splits are possible is tied into the format, not the processing, move
     class FileInputProcessor : public InputProcessor {
     public:
+        //Minimum average size that needs to be exceeded for a split
+        static constexpr unsigned long long OVERAGE_SIZE = 100 * 1024 * 1024;
         FileInputProcessor(Loader* owner, size_t threads, std::string inputType,
                            std::string loadDir, std::string fileRegex,
                            tools::mtools::MongoCluster::NameSpace ns) :

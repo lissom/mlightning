@@ -243,7 +243,7 @@ namespace loader {
 
         std::unique_ptr<InputProcessor> inputProcessor;
         inputProcessor.reset(new FileInputProcessor(this, _settings.threads, _settings.inputType,
-                                         _settings.loadDir, _settings.fileRegex, _settings.ns()));
+                                         _settings.inputConfigString, _settings.fileRegex, _settings.ns()));
         inputProcessor->run();
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
