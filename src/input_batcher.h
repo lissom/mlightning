@@ -28,9 +28,9 @@ namespace loader {
     namespace docbuilder {
 
         class InputNameSpaceContainer;
-        class AbstractChunkBatcher;
+        class ChunkBatcherInterface;
 
-        using ChunkBatcherPointer = std::unique_ptr<AbstractChunkBatcher>;
+        using ChunkBatcherPointer = std::unique_ptr<ChunkBatcherInterface>;
 
         using CreateBatcherFunction =
                 std::function<ChunkBatcherPointer(InputNameSpaceContainer* owner,
@@ -80,7 +80,7 @@ namespace loader {
          * Public interface for getting bson documents into large batches by chunk
          * Documents should be pushed into.
          */
-        class AbstractChunkBatcher {
+        class ChunkBatcherInterface {
         public:
             /**
              * Push is called when the LoadBuilder is ready to have any values required read
@@ -97,13 +97,13 @@ namespace loader {
              */
             virtual void clean() = 0;
 
-            virtual ~AbstractChunkBatcher() {
+            virtual ~ChunkBatcherInterface() {
             }
 
             /**
              * @return the opAggregator that the queue should post to
              */
-            dispatch::AbstractChunkDispatch* postTo() {
+            dispatch::ChunkDispatchInterface* postTo() {
                 return _dispatcher;
             }
 
@@ -126,12 +126,12 @@ namespace loader {
             }
 
         protected:
-            AbstractChunkBatcher(InputNameSpaceContainer* owner, Bson UBIndex);
+            ChunkBatcherInterface(InputNameSpaceContainer* owner, Bson UBIndex);
 
         private:
             InputNameSpaceContainer *_owner;
             size_t _queueSize;
-            dispatch::AbstractChunkDispatch *_dispatcher;
+            dispatch::ChunkDispatchInterface *_dispatcher;
             const Bson _UBIndex;
         };
 
@@ -167,14 +167,14 @@ namespace loader {
             /**
              * @return the stage for a single bson value.
              */
-            AbstractChunkBatcher* targetStage(const Bson& indexValue) {
+            ChunkBatcherInterface* targetStage(const Bson& indexValue) {
                 return _inputPlan.upperBound(indexValue).get();
             }
 
             /**
              * returns the opAggregator for that upper bound chunk key
              */
-            dispatch::AbstractChunkDispatch* getDispatchForChunk(Key key) {
+            dispatch::ChunkDispatchInterface* getDispatchForChunk(Key key) {
                 return out()->at(key).get();
             }
 
@@ -214,10 +214,10 @@ namespace loader {
 
         };
 
-        class DirectQueue : public AbstractChunkBatcher {
+        class DirectQueue : public ChunkBatcherInterface {
         public:
             DirectQueue(InputNameSpaceContainer* owner, Bson UBIndex) :
-                    AbstractChunkBatcher(owner, std::move(UBIndex))
+                    ChunkBatcherInterface(owner, std::move(UBIndex))
             {
                 _bsonHolder.reserve(queueSize());
             }
@@ -248,10 +248,10 @@ namespace loader {
             }
         };
 
-        class RAMQueue : public AbstractChunkBatcher {
+        class RAMQueue : public ChunkBatcherInterface {
         public:
             RAMQueue(InputNameSpaceContainer* owner, Bson UBIndex) :
-                AbstractChunkBatcher(owner, std::move(UBIndex))
+                ChunkBatcherInterface(owner, std::move(UBIndex))
             {
             }
 

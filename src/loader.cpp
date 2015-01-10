@@ -128,11 +128,15 @@ namespace loader {
         _writeOps = 0;
         setupLoad();
         _mCluster.loadCluster();
-        _endPoints.reset(new EndPointHolder(settings.endPointSettings, _mCluster));
+        _endPoints.reset(new EndPointHolder(settings.endPointSettings, cluster()));
         _chunkDispatch.reset(new dispatch::ChunkDispatcher(_settings.dispatchSettings,
-                                                           _mCluster,
+                                                           cluster(),
                                                            _endPoints.get(),
                                                            _settings.ns()));
+        _inputAggregator.reset(new docbuilder::InputNameSpaceContainer(queueSettings(),
+                                             cluster(),
+                                             &(chunkDispatcher()),
+                                             _settings.ns()));
     }
 
     void Loader::setupLoad() {
@@ -209,10 +213,10 @@ namespace loader {
         _endPoints->start();
     }
 
-    dispatch::AbstractChunkDispatch* Loader::getNextPrep() {
+    dispatch::ChunkDispatchInterface* Loader::getNextPrep() {
         tools::MutexLockGuard lg(_prepSetMutex);
         if (_wf.empty()) return nullptr;
-        dispatch::AbstractChunkDispatch* ret;
+        dispatch::ChunkDispatchInterface* ret;
         ret = _wf.front();
         _wf.pop_front();
         return ret;
@@ -220,7 +224,7 @@ namespace loader {
 
     void Loader::threadPrepQueue() {
         for (;;) {
-            dispatch::AbstractChunkDispatch* prep = getNextPrep();
+            dispatch::ChunkDispatchInterface* prep = getNextPrep();
             if (prep == nullptr) break;
             prep->prep();
             prep->doLoad();
@@ -241,7 +245,7 @@ namespace loader {
                   << std::endl;
 
 
-        std::unique_ptr<InputProcessor> inputProcessor;
+        std::unique_ptr<InputProcessorInterface> inputProcessor;
         inputProcessor.reset(new FileInputProcessor(this, _settings.threads, _settings.inputType,
                                          _settings.inputConfigString, _settings.fileRegex, _settings.ns()));
         inputProcessor->run();
@@ -259,7 +263,7 @@ namespace loader {
         tools::ThreadPool tpFinalize(finalizeThreads);
         _wf = _chunkDispatch->getWaterFall();
         //Wait for all threads to finish processing segments
-        inputProcessor->wait();
+        inputProcessor->waitEnd();
         timerRead.stop();
 
         std::cout << "Entering finalize phase" << std::endl;

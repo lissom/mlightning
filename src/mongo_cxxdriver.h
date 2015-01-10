@@ -29,6 +29,17 @@ namespace mongo {
     const std::string uriStart = "mongodb://";
     using Cursor = std::unique_ptr<mongo::DBClientCursor>;
     using Connection = std::unique_ptr<mongo::DBClientConnection>;
+    inline ConnectionString parseConnectionOrThrow(std::string connStr) {
+        std::string error;
+        ConnectionString mongoConnStr = mongo::ConnectionString::parse(connStr, error);
+        if (!error.empty()) {
+            std::cerr << "Unable to parse: " << connStr << "\nExiting" << std::endl;
+            std::logic_error("Unable to parse string");
+        }
+        if (!mongoConnStr.isValid())
+            throw std::logic_error("Invalid mongo connection string");
+        return mongoConnStr;
+    }
     /*
     std::ostream& operator<<(std::ostream& out, const std::vector<BSONObj>& bsonvec) {
         for (auto&& ist: bsonvec)

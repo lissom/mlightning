@@ -25,7 +25,7 @@ namespace loader {
                 "ram",
                 &RAMQueueDispatch::create);
 
-        AbstractChunkDispatch::AbstractChunkDispatch(Settings settings) :
+        ChunkDispatchInterface::ChunkDispatchInterface(Settings settings) :
                 _settings(std::move(settings)),
                 _bulkWriteVersion(_settings.owner->bulkWriteVersion())
         {
@@ -61,7 +61,7 @@ namespace loader {
         }
 
         ChunkDispatcher::OrderedWaterFall ChunkDispatcher::getWaterFall() {
-            std::unordered_map<tools::mtools::MongoCluster::ShardName, std::deque<AbstractChunkDispatch*>> chunksort;
+            std::unordered_map<tools::mtools::MongoCluster::ShardName, std::deque<ChunkDispatchInterface*>> chunksort;
             for (auto& i : _mCluster.nsChunks(_ns))
                 chunksort[std::get<1>(i)->first].emplace_back(getDispatchForChunk(std::get<0>(i)));
             OrderedWaterFall wf;

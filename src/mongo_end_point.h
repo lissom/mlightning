@@ -166,7 +166,7 @@ namespace tools {
                                 firstmiss = false;
                                 std::cout << dbConn->toString() << ": Hitting" << std::endl;
                             }
-                            if(!currentOp->run(dbConn))
+                            if(!currentOp->execute(dbConn))
                                 throw std::logic_error("Insert failed, terminating shoot out");
                         }
                         else {

@@ -5,9 +5,9 @@
  *      Author: charlie
  */
 
-#include "input_format.h"
 #include <assert.h>
 #include <iostream>
+#include "input_format_stream.h"
 
 namespace loader {
 
@@ -40,7 +40,7 @@ namespace loader {
     }
 
     //TODO: Keep average object size and implement fromjson with a large/smaller buffer
-    bool InputFormatJson::next(mongo::BSONObj* nextDoc) {
+    bool InputFormatJson::next(mongo::BSONObj* const nextDoc) {
         ++_lineNumber;
         if (_locSegment.end && (_infile.tellg() > _locSegment.end)) return false;
         if (!getline(_infile, _line)) return false;
@@ -75,7 +75,7 @@ namespace loader {
         assert(_infile.is_open());
     }
 
-    bool InputFormatBson::next(mongo::BSONObj* nextDoc) {
+    bool InputFormatBson::next(mongo::BSONObj* const nextDoc) {
         //Read the size into the buffer
         ++_docCount;
         //bsonspec.org defines the size of a bson object as 32 bit integer

@@ -274,7 +274,9 @@ namespace tools {
      * start = start byte, inclusive
      * end = end byte, exclusive
      * [start,end)
-     */
+     *
+     *
+*/
     struct DocLoc {
         static_assert(sizeof(std::streamsize) >= sizeof(std::int64_t), "mload assumes that std::streamsize is at least 64 bits so it can handle any files size");
         LogicalLoc location;
@@ -282,6 +284,7 @@ namespace tools {
         //Max bson size is currently 16Megs so int covers this easily.
         int length;
     };
+
 
     template<typename Tp, typename ... Args>
     inline std::unique_ptr<Tp> make_unique(Args ...args) {

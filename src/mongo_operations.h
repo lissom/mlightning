@@ -32,6 +32,7 @@ namespace tools {
          */
         using WriteConcern = mongo::WriteConcern;
         constexpr auto* DEFAULT_WRITE_CONCERN = &WriteConcern::majority;
+        //todo: change to using enum for return codes
         using OpReturnCode = bool;
         using Data = mongo::BSONObj;
         using DataQueue = std::vector<Data>;
@@ -40,19 +41,31 @@ namespace tools {
          * Public interface for a database operation
          * Base database operation
          * Holds everything required to run the operation against the database
+         * The empty callback function avoids an if statement and branch prediction misses
          */
         struct DbOp {
         public:
-            //TODO: use return codes for real async.  Just a function, keep empty base class.
-            DbOp() {
-            }
-            virtual ~DbOp() {
-            }
+            using callBackFun = std::function<void(DbOp &, OpReturnCode)>;
+            DbOp(callBackFun callBack = emptyCallBack) : _callBack(callBack = emptyCallBack) {};
+            virtual ~DbOp() {}
             /**
              * Executes the operation against the database connection
+             * Does callback on completion
              */
-            virtual OpReturnCode run(Connection* conn) = 0;
+            OpReturnCode execute(Connection* const conn) {
+                OpReturnCode retVal = run(conn);
+                _callBack(*this, retVal);
+                return retVal;
+            }
+
+            static void emptyCallBack(DbOp &, OpReturnCode) {};
+
+            callBackFun _callBack;
+
+        protected:
+            virtual OpReturnCode run(Connection* const conn) = 0;
         };
+
         using DbOpPointer = std::unique_ptr<DbOp>;
 
         /**
@@ -80,9 +93,7 @@ namespace tools {
         public:
 
             OpQueueNoLock(size_t queueSize) :
-                    _queue(queueSize)
-            {
-            }
+                    _queue(queueSize) {}
             virtual ~OpQueueNoLock() final;
 
             virtual inline OpReturnCode push(DbOpPointer& dbOp) final {
@@ -141,7 +152,6 @@ namespace tools {
                                        DataQueue* data,
                                        int flags = 0,
                                        const WriteConcern* wc = DEFAULT_WRITE_CONCERN);
-            OpReturnCode run(Connection* conn);
             std::string _ns;
             DataQueue _data;
             int _flags;
@@ -154,6 +164,9 @@ namespace tools {
             {
                 return DbOpPointer(new OpQueueBulkInsertUnorderedv24_0(ns, data, flags, wc));
             }
+
+        protected:
+            OpReturnCode run(Connection* const conn);
         };
 
         struct OpQueueBulkInsertUnorderedv26_0 : public DbOp {
@@ -161,7 +174,6 @@ namespace tools {
                                        DataQueue* data,
                                        int flags = 0,
                                        const WriteConcern* wc = DEFAULT_WRITE_CONCERN);
-            OpReturnCode run(Connection* conn);
             std::string _ns;
             DataQueue _data;
             int _flags;
@@ -175,8 +187,55 @@ namespace tools {
             {
                 return DbOpPointer(new OpQueueBulkInsertUnorderedv26_0(ns, data, flags, wc));
             }
+
+        protected:
+            OpReturnCode run(Connection* const conn);
         };
 
+        /**
+         * Performs a query.
+         * All data will be retrieved then the callback is issued, so this should only be used when
+         * the size of the result set is known to be constrained.
+         */
+        struct OpQueueQueryBulk : public DbOp {
+            OpQueueQueryBulk(callBackFun callBack,
+                            const std::string ns,
+                            const mongo::Query query,
+                            const mongo::BSONObj* const fieldsToReturn,
+                            const int queryOptions) :
+                            DbOp(callBack),
+                            _ns(ns),
+                            _query(query),
+                            _fieldsToReturn(fieldsToReturn),
+                            _queryOptions(queryOptions) {}
+
+            static DbOpPointer make(callBackFun callBack,
+                                    const std::string& ns,
+                                    const mongo::Query query,
+                                    const mongo::BSONObj* const fieldsToReturn = 0,
+                                    int queryOptions = 0)
+            {
+                return DbOpPointer(new OpQueueQueryBulk(callBack, ns, query, fieldsToReturn, queryOptions));
+            }
+
+            std::deque<mongo::BSONObj>& data() { return _data; }
+            long long size() { return _data.size(); }
+
+            const std::string _ns;
+            const mongo::Query _query;
+            const mongo::BSONObj* const _fieldsToReturn;
+            const int _queryOptions;
+
+            mongo::Cursor _cursor;
+            mongo::Connection _connection;
+            std::deque<mongo::BSONObj> _data;
+
+        protected:
+            OpReturnCode run(Connection* const conn);
+
+        private:
+            void enqueue(const mongo::BSONObj &obj) { _data.emplace_back(obj.getOwned()); }
+        };
 
     }  //namespace mtools
 }  //namespace tools

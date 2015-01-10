@@ -33,7 +33,7 @@ namespace loader {
          * Public interface for the AbstractChunkDispatchs.
          * Locking can be used.  Containers should push operations in batches.
          */
-        class AbstractChunkDispatch {
+        class ChunkDispatchInterface {
         public:
             struct Settings {
                 ChunkDispatcher* owner;
@@ -41,8 +41,8 @@ namespace loader {
                 Bson chunkUB;
             };
 
-            AbstractChunkDispatch(Settings settings);
-            virtual ~AbstractChunkDispatch() {
+            ChunkDispatchInterface(Settings settings);
+            virtual ~ChunkDispatchInterface() {
             }
 
             /**
@@ -101,7 +101,7 @@ namespace loader {
         /**
          * Pointer returned by factory functions
          */
-        using ChunkDispatchPointer = std::unique_ptr<AbstractChunkDispatch>;
+        using ChunkDispatchPointer = std::unique_ptr<ChunkDispatchInterface>;
 
         /**
          * Factory function signature
@@ -126,7 +126,7 @@ namespace loader {
          */
         class ChunkDispatcher {
         public:
-            using OrderedWaterFall = std::deque<AbstractChunkDispatch*>;
+            using OrderedWaterFall = std::deque<ChunkDispatchInterface*>;
             using Key = tools::mtools::MongoCluster::ChunkIndexKey;
             using Value = ChunkDispatchPointer;
             using LoadPlan = tools::Index<Key, Value, tools::BSONObjCmp>;
@@ -168,7 +168,7 @@ namespace loader {
             /**
              * @return the AbstractChunkDispatch for a chunk in this namespace
              */
-            AbstractChunkDispatch* getDispatchForChunk(Key& key) {
+            ChunkDispatchInterface* getDispatchForChunk(Key& key) {
                 return _loadPlan.at(key).get();
             }
 
@@ -250,7 +250,7 @@ namespace loader {
         };
 
         //TODO: create a protocol version map, but given I'm not sure about the args right now..
-        inline void AbstractChunkDispatch::send(tools::mtools::DataQueue* q) {
+        inline void ChunkDispatchInterface::send(tools::mtools::DataQueue* q) {
             switch(_bulkWriteVersion) {
             case 0 : endPoint()->push(tools::mtools::OpQueueBulkInsertUnorderedv24_0::make(
                 owner()->ns(), q, 0, owner()->writeConcern()));
@@ -267,10 +267,10 @@ namespace loader {
          * This AbstractChunkDispatch by passes queueing at this stage and send the load directly to the
          * end point.
          */
-        class DirectDispatch : public AbstractChunkDispatch {
+        class DirectDispatch : public ChunkDispatchInterface {
         public:
             DirectDispatch(Settings settings) :
-                    AbstractChunkDispatch(std::move(settings))
+                    ChunkDispatchInterface(std::move(settings))
             {
             }
 
@@ -305,10 +305,10 @@ namespace loader {
         /**
          * Stores the data in RAM until it is time to push.  At which point is sorts it and sends it.
          */
-        class RAMQueueDispatch : public AbstractChunkDispatch {
+        class RAMQueueDispatch : public ChunkDispatchInterface {
         public:
             RAMQueueDispatch(Settings settings) :
-                    AbstractChunkDispatch(std::move(settings))
+                    ChunkDispatchInterface(std::move(settings))
             {
             }
 
@@ -342,10 +342,10 @@ namespace loader {
         };
 
         //TODO: DiskQueue OpAgg, cycle sort?
-        class DiskQueueDispatch : public AbstractChunkDispatch {
+        class DiskQueueDispatch : public ChunkDispatchInterface {
         public:
             DiskQueueDispatch(Settings settings) :
-                    AbstractChunkDispatch(std::move(settings))
+                    ChunkDispatchInterface(std::move(settings))
             {
                 assert(false);
                 diskQueue.open(owner()->workPath() + "chunk" + this->settings().chunkUB.toString()

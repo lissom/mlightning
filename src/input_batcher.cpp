@@ -23,12 +23,13 @@ namespace loader {
         const bool RAMQueue::factoryRegisterCreator = ChunkBatchFactory::registerCreator(
                 "ram", &RAMQueue::create);
 
-        AbstractChunkBatcher::AbstractChunkBatcher(InputNameSpaceContainer* owner, Bson UBIndex) :
+        ChunkBatcherInterface::ChunkBatcherInterface(InputNameSpaceContainer* owner, Bson UBIndex) :
                 _owner(owner),
                 _queueSize(_owner->settings().queueSize),
                 _dispatcher(_owner->getDispatchForChunk(UBIndex)),
                 _UBIndex(std::move(UBIndex))
         {
+
         }
 
         void InputNameSpaceContainer::init(const tools::mtools::MongoCluster::NameSpace& ns) {

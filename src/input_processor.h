@@ -16,7 +16,7 @@
 #pragma once
 
 #include "input_batcher.h"
-#include "input_format.h"
+#include "input_format_stream.h"
 #include "mongo_cxxdriver.h"
 
 namespace loader {
@@ -25,18 +25,29 @@ namespace loader {
     /*
      * Runs the loading
      */
-    class InputProcessor {
+    class InputProcessorInterface {
     public:
-        virtual ~InputProcessor() {};
+        virtual ~InputProcessorInterface() {};
         virtual void run() = 0;
-        virtual void wait() = 0;
+        virtual void waitEnd() = 0;
+    };
+
+    class MongoInputProcessor : public InputProcessorInterface {
+    public:
+        MongoInputProcessor(std::string connStr) : _mCluster(connStr) {
+        }
+        void run() override;
+        void waitEnd() override;
+
+    private:
+        tools::mtools::MongoCluster _mCluster;
     };
 
     /*
      * Processes files
      */
     //TODO: If splits are possible is tied into the format, not the processing, move
-    class FileInputProcessor : public InputProcessor {
+    class FileInputProcessor : public InputProcessorInterface {
     public:
         //Minimum average size that needs to be exceeded for a split
         static constexpr unsigned long long OVERAGE_SIZE = 100 * 1024 * 1024;
@@ -56,7 +67,7 @@ namespace loader {
          * Returns when all input is finished
          * Calling this function before calling run is undefined
          */
-        void wait() override;
+        void waitEnd() override;
 
     private:
         const bool allowInputSplits() const { return _inputType == "json"; }
@@ -106,7 +117,7 @@ namespace loader {
         const bool _add_id;
         const mongo::BSONObj _keys;
         int _keyFieldsCount;
-        docbuilder::InputNameSpaceContainer _inputAggregator;
+        docbuilder::InputNameSpaceContainer& _inputAggregator;
         tools::LogicalLoc _docLogicalLoc;
         tools::DocLoc _docLoc;
         std::string _docJson;
@@ -114,7 +125,7 @@ namespace loader {
         mongo::BSONObjBuilder *_extra = NULL;
         mongo::BSONObj _docShardKey;
         bool _added_id{};
-        InputFormatPointer _input;
+        StreamInputInterfacePtr _input;
 
     };
 

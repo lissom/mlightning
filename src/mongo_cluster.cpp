@@ -27,19 +27,7 @@ namespace tools {
                 _sharded(false)
         {
             std::string error;
-            _connStr = mongo::ConnectionString::parse(connStr, error);
-            if (!error.empty()) {
-                std::cerr << "Unable to parse: " << connStr << "\nExiting" << std::endl;
-                exit(EXIT_FAILURE);
-            }
-            if (!_connStr.isValid())
-                throw std::logic_error("Invalid mongo connection string");
-            _dbConn.reset(_connStr.connect(error));
-            //TODO: make this error more helpful as the reason isn't included
-            if (error.size()) {
-                std::cerr << "Unable to connect: " << error << std::endl;
-                throw std::logic_error("Unable to connect to the mongo cluster");
-            }
+            _connStr = mongo::parseConnectionOrThrow(connStr);
             loadCluster();
         }
 

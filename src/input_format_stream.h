@@ -16,62 +16,57 @@
 
 namespace loader {
 
-    class AbstractFileInputFormat;
-
-    /**
-     * Pointer returned by factory functions
-     */
-    using InputFormatPointer = std::unique_ptr<AbstractFileInputFormat>;
-
-    /**
-     * Factory function signature
-     */
-    using CreateInputFormatFunction =
-            std::function<InputFormatPointer(void)>;
-
     /*
-     * Factory
-     */
-    using InputFormatFactory = tools::RegisterFactory<InputFormatPointer,
-            CreateInputFormatFunction>;
-
-    /*
-     * Public interface for the extraction of documents from sources.
+     * Iterface to fetch from a stream
      * bool next(mongo::BSONObj* nextDoc) is used to allow for the greatest variety of input sources
      */
-    class AbstractFileInputFormat {
+    class StreamInputInterface {
     public:
-        virtual ~AbstractFileInputFormat() { }
-
+        virtual ~StreamInputInterface() {}
         virtual void reset(tools::LocSegment segment) = 0;
         /**
          * If there is a document available, this function places the next one in the passed
          * variable
          * @return returns true if there is document available. False otherwise.
          */
-        virtual bool next(mongo::BSONObj* nextDoc) = 0;
-
+        virtual bool next(mongo::BSONObj* const nextDoc) = 0;
         /**
-         * Returns the position of the document.  Should assert if such a thing isn't possible and
-         * this is called.
+         * Returns the position of the document.
          */
         virtual size_t pos() = 0;
     };
 
     /**
+     * Pointer returned by factory functions
+     */
+    using StreamInputInterfacePtr = std::unique_ptr<StreamInputInterface>;
+
+    /**
+     * Factory function signature
+     */
+    using CreateInputFormatFunction =
+            std::function<StreamInputInterfacePtr(void)>;
+
+    /*
+     * Factory
+     */
+    using InputFormatFactory = tools::RegisterFactory<StreamInputInterfacePtr,
+            CreateInputFormatFunction>;
+
+    /**
      * Reads JSON from a file.
      */
-    class InputFormatJson : public AbstractFileInputFormat {
+    class InputFormatJson : public StreamInputInterface {
     public:
         InputFormatJson() { };
         virtual void reset(tools::LocSegment segment);
-        virtual bool next(mongo::BSONObj* nextDoc);
+        virtual bool next(mongo::BSONObj* const nextDoc);
         virtual size_t pos() {
             return _infile.tellg();
         }
 
-        static InputFormatPointer create() {
-            return InputFormatPointer(new InputFormatJson());
+        static StreamInputInterfacePtr create() {
+            return StreamInputInterfacePtr(new InputFormatJson());
         }
 
     private:
@@ -93,17 +88,17 @@ namespace loader {
     /**
      * Reads BSON from a file.
      */
-    class InputFormatBson : public AbstractFileInputFormat {
+    class InputFormatBson : public StreamInputInterface {
     public:
         InputFormatBson() : _buffer(mongo::BSONObjMaxUserSize) {};
         virtual void reset(tools::LocSegment segment);
-        virtual bool next(mongo::BSONObj* nextDoc);
+        virtual bool next(mongo::BSONObj* const nextDoc);
         virtual size_t pos() {
             return _infile.tellg();
         }
 
-        static InputFormatPointer create() {
-            return InputFormatPointer(new InputFormatBson());
+        static StreamInputInterfacePtr create() {
+            return StreamInputInterfacePtr(new InputFormatBson());
         }
 
     private:

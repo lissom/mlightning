@@ -68,7 +68,7 @@ namespace tools {
         {
         }
 
-        OpReturnCode OpQueueBulkInsertUnorderedv24_0::run(Connection* conn) {
+        OpReturnCode OpQueueBulkInsertUnorderedv24_0::run(Connection* const conn) {
             conn->insert(_ns, _data, _flags, _wc);
             if (!_wc || !_wc->requiresConfirmation()) return true;
             return opCheckError(conn);
@@ -83,12 +83,35 @@ namespace tools {
         }
 
         //TODO: move this further up the stack if possible
-        OpReturnCode OpQueueBulkInsertUnorderedv26_0::run(Connection* conn) {
+        OpReturnCode OpQueueBulkInsertUnorderedv26_0::run(Connection* const conn) {
             auto bulker = conn->initializeUnorderedBulkOp(_ns);
             for (auto&& itr: _data)
                 bulker.insert(itr);
             bulker.execute(_wc, &_writeResult);
             return opCheckError(_writeResult);
+        }
+
+        OpReturnCode OpQueueQueryBulk::run(Connection* const conn) {
+            //todo: check out errors more (probably this is as good at it gets with the driver though)
+            /*
+             * This doesn't run the exhaust option (it masks it out)
+            conn->query([this](const mongo::BSONObj &obj) { this->enqueue(obj); },
+                    _ns, _query, _fieldsToReturn, _queryOptions);
+                    */
+            //Exhaust option is added because we are going to get all results immediately.
+            bool noErrors = true;
+            auto c = conn->query(_ns, _query, 0, 0, _fieldsToReturn,
+                    _queryOptions | mongo::QueryOption_Exhaust);
+            while (c->more()) {
+                mongo::BSONObj obj;
+                if( strcmp(obj.firstElementFieldName(), "$err") == 0 ) {
+                    std::string s = "error reading document: " + obj.toString();
+                    std::cerr << s << std::endl;
+                    noErrors = false;
+                }
+                enqueue(obj);
+            }
+            return noErrors;
         }
     }
 }  //namespace mtools

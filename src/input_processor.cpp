@@ -118,7 +118,7 @@ namespace loader {
         }
     }
 
-    void FileInputProcessor::wait() {
+    void FileInputProcessor::waitEnd() {
         _tpInput->joinAll();
         //Make sure that all segments have been processed, invariant
         if (_processedSegments != _locSegMapping.size()) {
@@ -136,10 +136,7 @@ namespace loader {
             _add_id(_owner->settings().indexHas_id && _owner->settings().add_id),
             _keys(_owner->settings().shardKeysBson),
             _keyFieldsCount(_keys.nFields()),
-            _inputAggregator(_owner->queueSettings(),
-                             owner->cluster(),
-                             &owner->chunkDispatcher(),
-                             _ns),
+            _inputAggregator(_owner->inputAggregator()),
             _docLogicalLoc{}
     {
         _input = InputFormatFactory::createObject(fileType);
