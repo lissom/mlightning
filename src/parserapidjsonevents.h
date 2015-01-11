@@ -258,10 +258,7 @@ namespace loader {
                 return true;
             }
             if (_count > 1 || _subField != "i") return false;
-            mongo::Timestamp_t ts(_stackTimeStampT * 1000, value);
-            _bob->appendTimestamp(_field, ts);
-            //prior driver _bob->appendTimestamp(_field, mongo::Timestamp_t(_stackTimeStampT*1000, value));
-
+            _bob->appendTimestamp(_field, mongo::Timestamp_t(_stackTimeStampT * 1000, value));
             ++_count;
             _state = Unwind;
             return true;
