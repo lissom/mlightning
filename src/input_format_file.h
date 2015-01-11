@@ -20,9 +20,9 @@ namespace loader {
      * Iterface to fetch from a stream
      * bool next(mongo::BSONObj* nextDoc) is used to allow for the greatest variety of input sources
      */
-    class StreamInputInterface {
+    class FileInputInterface {
     public:
-        virtual ~StreamInputInterface() {}
+        virtual ~FileInputInterface() {}
         virtual void reset(tools::LocSegment segment) = 0;
         /**
          * If there is a document available, this function places the next one in the passed
@@ -39,24 +39,24 @@ namespace loader {
     /**
      * Pointer returned by factory functions
      */
-    using StreamInputInterfacePtr = std::unique_ptr<StreamInputInterface>;
+    using FileInputInterfacePtr = std::unique_ptr<FileInputInterface>;
 
     /**
      * Factory function signature
      */
-    using CreateInputFormatFunction =
-            std::function<StreamInputInterfacePtr(void)>;
+    using CreateFileInputFunction =
+            std::function<FileInputInterfacePtr(void)>;
 
     /*
      * Factory
      */
-    using InputFormatFactory = tools::RegisterFactory<StreamInputInterfacePtr,
-            CreateInputFormatFunction>;
+    using InputFormatFactory = tools::RegisterFactory<FileInputInterfacePtr,
+            CreateFileInputFunction>;
 
     /**
      * Reads JSON from a file.
      */
-    class InputFormatJson : public StreamInputInterface {
+    class InputFormatJson : public FileInputInterface {
     public:
         InputFormatJson() { };
         virtual void reset(tools::LocSegment segment);
@@ -65,8 +65,8 @@ namespace loader {
             return _infile.tellg();
         }
 
-        static StreamInputInterfacePtr create() {
-            return StreamInputInterfacePtr(new InputFormatJson());
+        static FileInputInterfacePtr create() {
+            return FileInputInterfacePtr(new InputFormatJson());
         }
 
     private:
@@ -88,7 +88,7 @@ namespace loader {
     /**
      * Reads BSON from a file.
      */
-    class InputFormatBson : public StreamInputInterface {
+    class InputFormatBson : public FileInputInterface {
     public:
         InputFormatBson() : _buffer(mongo::BSONObjMaxUserSize) {};
         virtual void reset(tools::LocSegment segment);
@@ -97,8 +97,8 @@ namespace loader {
             return _infile.tellg();
         }
 
-        static StreamInputInterfacePtr create() {
-            return StreamInputInterfacePtr(new InputFormatBson());
+        static FileInputInterfacePtr create() {
+            return FileInputInterfacePtr(new InputFormatBson());
         }
 
     private:

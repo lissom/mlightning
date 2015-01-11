@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include <mongo/client/dbclient.h>
 #include <string>
 #include <stdlib.h>
+#include "mongo_cxxdriver.h"
 #include "rapidjson/reader.h"
 #include "rapidjson/error/en.h"
 
@@ -258,7 +258,8 @@ namespace loader {
                 return true;
             }
             if (_count > 1 || _subField != "i") return false;
-            _bob->appendTimestamp(_field, _stackTimeStampT * 1000, value);
+            mongo::Timestamp_t ts(_stackTimeStampT * 1000, value);
+            _bob->appendTimestamp(_field, ts);
             //prior driver _bob->appendTimestamp(_field, mongo::Timestamp_t(_stackTimeStampT*1000, value));
 
             ++_count;

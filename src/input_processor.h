@@ -16,7 +16,7 @@
 #pragma once
 
 #include "input_batcher.h"
-#include "input_format_stream.h"
+#include "input_format_file.h"
 #include "mongo_cxxdriver.h"
 
 namespace loader {
@@ -42,6 +42,8 @@ namespace loader {
     private:
         tools::mtools::MongoCluster _mCluster;
     };
+
+
 
     /*
      * Processes files
@@ -125,7 +127,7 @@ namespace loader {
         mongo::BSONObjBuilder *_extra = NULL;
         mongo::BSONObj _docShardKey;
         bool _added_id{};
-        StreamInputInterfacePtr _input;
+        FileInputInterfacePtr _input;
 
     };
 

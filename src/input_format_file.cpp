@@ -5,9 +5,10 @@
  *      Author: charlie
  */
 
+#include "input_format_file.h"
+
 #include <assert.h>
 #include <iostream>
-#include "input_format_stream.h"
 
 namespace loader {
 
