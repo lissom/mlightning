@@ -121,9 +121,9 @@ namespace loader {
 
     Loader::Loader(Settings settings) :
             _settings(std::move(settings)),
-            _mCluster {_settings.connstr},
-            _ramMax {tools::getTotalSystemMemory()},
-            _threadsMax {(size_t) _settings.threads}
+            _mCluster (_settings.connstr),
+            _ramMax (tools::getTotalSystemMemory()),
+            _threadsMax (static_cast<size_t>(_settings.threads))
     {
         _writeOps = 0;
         setupLoad();

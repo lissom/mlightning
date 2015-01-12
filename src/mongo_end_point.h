@@ -216,6 +216,9 @@ namespace tools {
         /**
          * Holds end points to a cluster.
          * All endpoints should either be monogS or mongoD
+         *
+         * MongoEndPointHolder will get the mongoS from the cluster connectoin string if direct
+         * connections aren't specified.
          */
         //template<typename TOpQueue = tools::mtools::OpQueueNoLock>
         template<typename TOpQueue = tools::mtools::OpQueueLocking1>
@@ -236,9 +239,12 @@ namespace tools {
                                 new MongoEndPoint {settings, shard.second})));
                 }
                 else {
-                    for (auto& mongoS : mCluster.mongos())
-                        _epm.emplace(std::make_pair(mongoS, MongoEndPointPtr(new MongoEndPoint {
-                                settings, mongoS})));
+                    auto servers = mCluster.connStr().getServers();
+                    for (auto& mongoS : servers) {
+                        std::string mongoSConn = std::string("mongodb://").append(mongoS.toString());
+                        _epm.emplace(std::make_pair(mongoSConn, MongoEndPointPtr(new MongoEndPoint (
+                                settings, mongoSConn))));
+                    }
                 }
                 assert(_epm.size());
                 //We like to start with edge cases

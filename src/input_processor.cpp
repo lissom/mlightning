@@ -23,7 +23,7 @@ namespace loader {
 
 
     void MongoInputProcessor::run() {
-
+        //_mCluster.
     }
 
     void MongoInputProcessor::waitEnd() {

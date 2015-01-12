@@ -125,6 +125,10 @@ namespace tools {
                 return _connStr;
             }
 
+            const mongo::ConnectionString& connStr() const {
+                return _connStr;
+            }
+
             /**
              * Returns that shards as in the config.shards namespace
              */
