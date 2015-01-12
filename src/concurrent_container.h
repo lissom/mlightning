@@ -50,12 +50,12 @@ namespace tools {
         {
         }
 
-        void swap(ContainerType& from) {
+        void swap(ContainerType& from) noexcept {
             MutexLockGuard lock(*_mutex);
             _container.swap(from);
         }
 
-        bool pop(value_type& ret) {
+        bool pop(value_type& ret) noexcept {
             MutexLockGuard lock(*_mutex);
             if (_container.empty()) return false;
             ret = (std::move(_container.front()));
@@ -111,22 +111,26 @@ namespace tools {
             return true;
         }
 
-        size_t size() const {
+        size_t size() const noexcept {
             MutexLockGuard lock(*_mutex);
             return _container.size();
         }
 
-        bool empty() const {
+        bool empty() const noexcept {
+            //Call to size locks
             return size() == 0;
         }
 
         /**
          * Changes the max size for waiting.
+         * If the new size max will open more queue slots then release that number of threads
+         * If the new size max is smaller, then the queue has to drain naturally
          */
-        void sizeMaxSet(size_t sizeMax) {
-            bool doNotify = _sizeMax && (sizeMax > _sizeMax);
+        void setSizeMax(size_t sizeMax) noexcept {
+            MutexLockGuard lock(*_mutex);
+            size_t doNotify = _sizeMax && (sizeMax > _sizeMax) ? sizeMax - _sizeMax : 0;
             _sizeMax = sizeMax;
-            if (doNotify) _sizeMaxNotify->notify_all();
+            for(; doNotify; --doNotify) _sizeMaxNotify->notify_one();
         }
 
         /**

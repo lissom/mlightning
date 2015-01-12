@@ -69,6 +69,18 @@ namespace tools {
             if (idx) idx->finalize();
         }
 
+        MongoCluster::ShardChunks MongoCluster::getShardChunks() {
+            ShardChunks shardChunks;
+            mongo::Cursor cur = _dbConn->query("config.chunks", mongo::Query());
+            while (cur->more()) {
+                mongo::BSONObj obj = cur->next();
+                shardChunks[obj.getStringField("shard")].push_back(
+                        ChunkRange(obj.getField("max").Obj().getOwned(),
+                                obj.getField("min").Obj().getOwned()));
+            }
+            return std::move(shardChunks);
+        }
+
         template<typename MappingType>
         void MongoCluster::loadIndex(NsTagUBIndex* index, const std::string& queryNs, MappingType* linkmap,
                                      const std::string& mappingName, const std::string group,
@@ -154,7 +166,7 @@ namespace tools {
 
         }
 
-        MongoCluster::ShardMap MongoCluster::getShardList() {
+        MongoCluster::ShardMap MongoCluster::getShardList() const {
             ShardMap shardMap(shards().begin(), shards().end());
             return std::move(shardMap);
         }

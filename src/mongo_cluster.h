@@ -49,6 +49,15 @@ namespace tools {
             using ShardConn = std::string;
             using ShardTag = std::string;
             using ChunkIndexKey = mongo::BSONObj;
+            struct ChunkRange {
+                ChunkIndexKey max;
+                ChunkIndexKey min;
+
+                ChunkRange(ChunkIndexKey max__, ChunkIndexKey min__) :
+                    max(max__), min(min__)
+                { }
+            };
+            using ShardChunks = std::unordered_map<ShardName, std::deque<ChunkRange>>;
             struct MetaNameSpace {
                 NameSpace ns;
                 bool dropped;
@@ -129,7 +138,9 @@ namespace tools {
             /**
              * Returns that shards as in the config.shards namespace
              */
-            ShardMap getShardList();
+            ShardMap getShardList() const;
+
+            ShardChunks getShardChunks();
 
             /**
              * @return access to shards and their connection strings
