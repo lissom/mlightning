@@ -21,6 +21,16 @@
 
 namespace loader {
 
+
+    void MongoInputProcessor::run() {
+
+    }
+
+    void MongoInputProcessor::waitEnd() {
+
+    }
+
+
     void FileInputProcessor::run() {
         //Ensure the directory exists
         if (!is_directory(boost::filesystem::path(_loadDir))) {
@@ -56,8 +66,8 @@ namespace loader {
             exit(EXIT_SUCCESS);
         }
         /*
-         * Crucial this is sorted and not changed past this point.  _locSetMapping is used as an
-         * index and it can also have std::sort called against it to find the index of a file name.
+         * Crucial _locSegMapping is sorted and not changed past this point.  _locSetMapping is used
+         * as an index, it can have std::sort called against it to find the index of a file name.
          *
          * The various queue stages that need to look up a file index by name or name by index use
          * this and expect to use this as the source of truth for file->index mapping.
@@ -107,7 +117,7 @@ namespace loader {
     }
 
     void FileInputProcessor::threadProcessSegment() {
-        SegmentProcessor lsp(_owner, _ns, _owner->settings().inputType);
+        FileSegmentProcessor lsp(_owner, _owner->settings().inputType);
         tools::LocSegment segment;
         for (;;) {
             if (!_locSegmentQueue.pop(segment)) break;
@@ -124,96 +134,101 @@ namespace loader {
         if (_processedSegments != _locSegMapping.size()) {
             std::cerr << "Error: not all segments processed. Total segments: "
                     << _locSegMapping.size() << "; Processed: " << _processedSegments
-                    << "; Exiting" << std::endl;
+                    << "\nExiting" << std::endl;
             exit(EXIT_FAILURE);
         }
     }
 
     //TODO::clean this up and not pass owner
-    SegmentProcessor::SegmentProcessor(Loader* owner, std::string ns, const std::string& fileType) :
+    DocumentProcessor::DocumentProcessor(Loader* owner) :
             _owner(owner),
-            _ns(std::move(ns)),
             _add_id(_owner->settings().indexHas_id && _owner->settings().add_id),
             _keys(_owner->settings().shardKeysBson),
             _keyFieldsCount(_keys.nFields()),
-            _inputAggregator(_owner->inputAggregator()),
-            _docLogicalLoc{}
+            _inputAggregator(_owner->inputAggregator())
+    {}
+
+    void DocumentProcessor::process() {
+        mongo::BSONObjBuilder extra;
+        //TODO: Make sure that this extra field keys works with multikey indexes, sparse, etc
+        //fillWithNull is set to false, not sure that works with mulitfield keys
+        //May need to switch to void getFields(unsigned n, const char **fieldNames, BSONElement* fields) const;
+        _docShardKey = doc.extractFields(_keys, false);
+        _added_id = false;
+        //Check to see if the document has a complete shard key
+        if (_docShardKey.nFields() != _keyFieldsCount) {
+            //If we can add the _id and _id is the only missing field, add it, else error
+            if (_add_id && (_keyFieldsCount - _docShardKey.nFields()) == 1 &&
+                    !_docShardKey.hasField("_id")) {
+                //If the shard key is only short by _id and we are willing to add it, do so
+                //The shard key must be complete at this stage so all sorting is correct
+                _added_id = true;
+                auto oid = mongo::OID::gen();
+                //Update the added fields
+                extra.append("_id", oid);
+                //Add the _id field
+                if (_keyFieldsCount == 1)
+                    _docShardKey = BSON("_id" << oid);
+                else {
+                    auto itr = _docShardKey.begin();
+                    size_t pos = 0;
+                    mongo::BSONObjBuilder index;
+                    do {
+                        if (pos != _owner->settings().indexPos_id) index.append(itr.next());
+                        else index.append("_id", oid);
+                        ++pos;
+                    }
+                    while (itr.more());
+                    _docShardKey = index.obj();
+                }
+            }
+            //TODO: continue on error: convert to log message if continue
+            else throw std::logic_error("No shard key in doc");
+        }
+        //If hashing is required, do it
+        if (_owner->settings().hashed) _docShardKey =
+                BSON("_id-hash" << mongo::BSONElementHasher::hash64(_docShardKey.firstElement(),
+                                       mongo::BSONElementHasher::DEFAULT_HASH_SEED));
+        _extra = &extra;
+    }
+
+    Bson DocumentProcessor::getFinalDoc() {
+        return std::move(doc);
+    }
+
+    Bson DocumentProcessor::getIndex() {
+        return std::move(_docShardKey);
+    }
+
+    Bson DocumentProcessor::getAdd() {
+        return std::move(_extra->obj());
+    }
+
+    FileSegmentProcessor::FileSegmentProcessor(Loader* owner, const std::string& fileType) :
+        DocumentProcessor(owner),
+        _docLogicalLoc{}
     {
         _input = InputFormatFactory::createObject(fileType);
     }
 
-    Bson SegmentProcessor::getFinalDoc() {
-        return std::move(_doc);
-    }
-
-    Bson SegmentProcessor::getIndex() {
-        return std::move(_docShardKey);
-    }
-
-    Bson SegmentProcessor::getAdd() {
-        return std::move(_extra->obj());
-    }
-
-    tools::DocLoc SegmentProcessor::getLoc() {
+    tools::DocLoc FileSegmentProcessor::getLoc() {
         _docLoc.length = _input->pos() - _docLoc.start;
         _docLoc.length--;
         assert(_docLoc.length > 0);
         return std::move(_docLoc);
     }
 
-    void SegmentProcessor::processSegmentToBatch(tools::LocSegment segment,
+    void FileSegmentProcessor::processSegmentToBatch(tools::LocSegment segment,
                                                tools::LogicalLoc logicalLoc)
     {
-        //TODO: it probably faster to pull elements and check those, then buld from that
-        //May need to switch to void getFields(unsigned n, const char **fieldNames, BSONElement* fields) const;
         _docLogicalLoc = logicalLoc;
         _input->reset(std::move(segment));
         _docLoc.location = _docLogicalLoc;
         _docLoc.start = _input->pos();
         //Reads in documents until the segment comes back with no more docs
-        while (_input->next(&_doc)) {
-            mongo::BSONObjBuilder extra;
-            //TODO: Make sure that this extra field keys works with multikey indexes, sparse, etc
-            //fillWithNull is set to false, not sure that works with mulitfield keys
-            _docShardKey = _doc.extractFields(_keys, false);
-            _added_id = false;
-            //Check to see if the document has a complete shard key
-            if (_docShardKey.nFields() != _keyFieldsCount) {
-                //If we can add the _id and _id is the only missing field, add it, else error
-                if (_add_id && (_keyFieldsCount - _docShardKey.nFields()) == 1 &&
-                        !_docShardKey.hasField("_id")) {
-                    //If the shard key is only short by _id and we are willing to add it, do so
-                    //The shard key must be complete at this stage so all sorting is correct
-                    _added_id = true;
-                    auto oid = mongo::OID::gen();
-                    //Update the added fields
-                    extra.append("_id", oid);
-                    //Add the _id field
-                    if (_keyFieldsCount == 1)
-                        _docShardKey = BSON("_id" << oid);
-                    else {
-                        auto itr = _docShardKey.begin();
-                        size_t pos = 0;
-                        mongo::BSONObjBuilder index;
-                        do {
-                            if (pos != _owner->settings().indexPos_id) index.append(itr.next());
-                            else index.append("_id", oid);
-                            ++pos;
-                        }
-                        while (itr.more());
-                        _docShardKey = index.obj();
-                    }
-                }
-                //TOOD: continue on error: convert to log message if continue
-                else throw std::logic_error("No shard key in doc");
-            }
-            //If hashing is required, do it
-            if (_owner->settings().hashed) _docShardKey =
-                    BSON("_id-hash" << mongo::BSONElementHasher::hash64(_docShardKey.firstElement(),
-                                           mongo::BSONElementHasher::DEFAULT_HASH_SEED));
-            _extra = &extra;
-            auto* stage = _inputAggregator.targetStage(_docShardKey);
-            stage->push(this);
+        while (_input->next(&doc)) {
+            process();
+            push();
             _docLoc.start = _input->pos();
         }
     }

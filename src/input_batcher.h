@@ -53,10 +53,10 @@ namespace loader {
          * Therefore the functions should be completely independent
          *
          */
-        class DocumentBuilder {
+        class DocumentBuilderInterface {
         public:
-            DocumentBuilder() { }
-            virtual ~DocumentBuilder() { }
+            DocumentBuilderInterface() { }
+            virtual ~DocumentBuilderInterface() { }
             /**
              * Returns the BSON to the completely built doc
              */
@@ -85,7 +85,7 @@ namespace loader {
             /**
              * Push is called when the LoadBuilder is ready to have any values required read
              */
-            virtual void push(DocumentBuilder* stage) = 0;
+            virtual void push(DocumentBuilderInterface* stage) = 0;
 
             /**
              * Is the queue empty?
@@ -222,7 +222,7 @@ namespace loader {
                 _bsonHolder.reserve(queueSize());
             }
 
-            void push(DocumentBuilder* stage) {
+            void push(DocumentBuilderInterface* stage) {
                 _bsonHolder.push_back(stage->getFinalDoc());
                 if (_bsonHolder.size() >= queueSize()) {
                     postTo()->push(&_bsonHolder);
@@ -255,7 +255,7 @@ namespace loader {
             {
             }
 
-            void push(DocumentBuilder* stage) {
+            void push(DocumentBuilderInterface* stage) {
                 _bsonHolder.push_back(std::make_pair(stage->getIndex(), stage->getFinalDoc()));
                 if (_bsonHolder.size() > queueSize()) {
                     postTo()->pushSort(&_bsonHolder);

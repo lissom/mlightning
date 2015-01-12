@@ -34,16 +34,15 @@ namespace loader {
 
     class MongoInputProcessor : public InputProcessorInterface {
     public:
-        MongoInputProcessor(std::string connStr) : _mCluster(connStr) {
-        }
+        MongoInputProcessor(Loader* owner, size_t threads, std::string connStr) :
+            _mCluster(connStr) { }
         void run() override;
         void waitEnd() override;
 
     private:
         tools::mtools::MongoCluster _mCluster;
+
     };
-
-
 
     /*
      * Processes files
@@ -94,13 +93,44 @@ namespace loader {
     };
 
     /*
-     * Current assumption is that a single LoadSegmentProcessor handles a single namespace.
-     * This could change in the future but to keep lookups down it's probably better to
-     * make sure that load segments are handed off by namespace if possible.
+     * Performs any needed transformations on a BSON document so it can be inserted
+     * To use, load a document into the public "doc" variable and then run process() and push()
+     * Given that BSONObj's cannot currently be moved, leaving doc public is a performance decision
      */
-    class SegmentProcessor : public docbuilder::DocumentBuilder {
+    class DocumentProcessor : public docbuilder::DocumentBuilderInterface {
     public:
-        SegmentProcessor(Loader* owner, std::string ns, const std::string& fileType);
+        DocumentProcessor(Loader* owner);
+        /**
+         * A document is put in _doc and then it is processed
+         * Done due to BSON ownership model
+         */
+        void process();
+        void push() { _inputAggregator.targetStage(_docShardKey)->push(this); }
+
+        Bson getFinalDoc() override;
+        Bson getIndex() override;
+        Bson getAdd() override;
+        tools::DocLoc getLoc() { return tools::DocLoc(); }
+
+        Loader* owner() { return _owner; }
+
+        mongo::BSONObj doc;
+
+    private:
+        Loader* const _owner;
+        const bool _add_id;
+        const mongo::BSONObj _keys;
+        int _keyFieldsCount;
+        docbuilder::InputNameSpaceContainer& _inputAggregator;
+        mongo::BSONObjBuilder *_extra = NULL;
+        mongo::BSONObj _docShardKey;
+        bool _added_id{};
+
+    };
+
+    class FileSegmentProcessor : public DocumentProcessor {
+    public:
+        FileSegmentProcessor(Loader* owner, const std::string& fileType);
 
         /**
          * Takes a segment and it's logical location (i.e. the mapping to something real)
@@ -108,25 +138,11 @@ namespace loader {
          */
         void processSegmentToBatch(tools::LocSegment segment, tools::LogicalLoc logicalLoc);
 
-        virtual Bson getFinalDoc();
-        virtual Bson getIndex();
-        virtual Bson getAdd();
-        virtual tools::DocLoc getLoc();
+        tools::DocLoc getLoc() override;
 
     private:
-        Loader *_owner;
-        const std::string _ns;
-        const bool _add_id;
-        const mongo::BSONObj _keys;
-        int _keyFieldsCount;
-        docbuilder::InputNameSpaceContainer& _inputAggregator;
         tools::LogicalLoc _docLogicalLoc;
         tools::DocLoc _docLoc;
-        std::string _docJson;
-        Bson _doc;
-        mongo::BSONObjBuilder *_extra = NULL;
-        mongo::BSONObj _docShardKey;
-        bool _added_id{};
         FileInputInterfacePtr _input;
 
     };
