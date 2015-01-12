@@ -60,9 +60,6 @@ namespace tools {
                                   ns(std::move(ns__)), dropped(dropped__), key(std::move(key__)),
                                   unique(unique__)
                                     { }
-
-
-
             };
             struct MetaDatabase {
                 DatabaseName name;

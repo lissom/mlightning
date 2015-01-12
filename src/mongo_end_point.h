@@ -236,18 +236,24 @@ namespace tools {
                 if (settings.directLoad) {
                     for (auto& shard : mCluster.shards())
                         _epm.emplace(std::make_pair(shard.first, MongoEndPointPtr(
-                                new MongoEndPoint {settings, shard.second})));
+                                new MongoEndPoint (settings, shard.second))));
                 }
                 else {
                     auto servers = mCluster.connStr().getServers();
+                    auto clusterS = mCluster.mongos();
                     for (auto& mongoS : servers) {
-                        std::string mongoSConn = std::string("mongodb://").append(mongoS.toString());
-                        _epm.emplace(std::make_pair(mongoSConn, MongoEndPointPtr(new MongoEndPoint (
-                                settings, mongoSConn))));
+                        std::string mongosConn = std::string("mongodb://").append(mongoS.toString());
+                        if (std::find(clusterS.begin(), clusterS.end(), mongosConn)
+                            == clusterS.end()) {
+                            throw std::logic_error("MongoEndPointHolder::ctor: Unable to find"
+                                    "mongoS in cluster");
+                        }
+                        _epm.emplace(std::make_pair(mongosConn, MongoEndPointPtr(new MongoEndPoint(
+                                settings, mongosConn))));
                     }
                 }
                 assert(_epm.size());
-                //We like to start with edge cases
+                //Must start at _emp.begin() or the case of size() == 1 will fail;
                 _cycleItr = _epm.begin();
                 if (settings.startImmediate) start();
             }
@@ -265,6 +271,7 @@ namespace tools {
              */
             MongoEndPoint* getMongoSCycle() {
                 tools::MutexLockGuard lock(_cycleMutex);
+                //This assumes _cycleItr is initialized to begin()
                 ++_cycleItr;
                 if (_cycleItr == _epm.end()) _cycleItr = _epm.begin();
                 return _cycleItr->second.get();
