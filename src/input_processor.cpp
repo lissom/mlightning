@@ -22,8 +22,13 @@
 namespace loader {
 
 
+    MongoInputProcessor::MongoInputProcessor(Loader* owner, size_t threads, std::string connStr) :
+        _mCluster(connStr),
+        _endPoints(owner->settings().inputEndPointSettings, _mCluster)
+        {}
+
     void MongoInputProcessor::run() {
-        //_mCluster.
+        _mCluster.nsChunks("");
     }
 
     void MongoInputProcessor::waitEnd() {

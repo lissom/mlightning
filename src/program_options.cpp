@@ -29,6 +29,29 @@ namespace loader {
 
     }  //namespace
 
+    namespace {
+        namespace po = boost::program_options;
+        void setClusterOptions(const std::string& prefix,
+            po::options_description* desc,
+            Loader::Settings::ClusterSettings* clusterSettings,
+            tools::mtools::MongoEndPointSettings* endPointSettings) {
+            desc->add_options()
+                (std::string(prefix + "uri").c_str(), po::value<std::string>(&clusterSettings->uri)
+                        ->default_value("mongodb://127.0.0.1:27017"), "mongodb connection URI")
+                (std::string(prefix + "db").c_str(), po::value<std::string>(&clusterSettings->database), "database")
+                (std::string(prefix + "coll").c_str(), po::value<std::string>(&clusterSettings->collection), "collection")
+                (std::string(prefix + "stopBalancer").c_str(), po::value<bool>(&clusterSettings->stopBalancer)->default_value(true),
+                        "stop the balancer")
+                (std::string(prefix + "direct").c_str(), po::value<bool>(&endPointSettings->directLoad)
+                        , "In sharded configs, don't use mongoS")
+                (std::string(prefix + "batchMaxQueue").c_str(), po::value<size_t>(&endPointSettings->maxQueueSize)
+                        ->default_value(100), "End point queue size")
+                (std::string(prefix + "threads").c_str(), po::value<size_t>(&endPointSettings->threadCount)
+                        ->default_value(2), "Threads per end point")
+                /*(std::string(prefix + "locklessMissWait").c_str(), po::value<size_t>(&endPointSettings->sleepTime)
+                        ->default_value(10), "Lockless end points miss wait")*/;
+        }
+    }
 //TODO: convert to YAML setup file
 //TODO: config file
 //TODO: logging queue and output file
@@ -47,7 +70,7 @@ namespace loader {
                 "\nCurrently supported: "
                 + loader::docbuilder::ChunkBatchFactory::getKeysPretty() + "\nDirect between 10 and 100 is recommended";
         const std::string supportedInputTypes = "Input types: " +
-                loader::Loader::Settings::inputTypesPretty();
+                loader::Loader::Settings::inputTypesPretty() + ", " + Loader::Settings::MONGO_CLUSTER_INPUT;
         generic.add_options()
             ("help,h", "print this help message")
             ("record.statFile,S", po::value<std::string>(&settings.statsFile),
@@ -64,16 +87,10 @@ namespace loader {
                     "regular expression to match files on: (.*)(json)")
             ("workPath", po::value<std::string>(&settings.workPath),
                     "directory to save temporary work in")
-            ("uri,u", po::value<std::string>(&settings.connstr)
-                    ->default_value("mongodb://127.0.0.1:27017"), "mongodb connection URI")
-            ("db,d", po::value<std::string>(&settings.database)->required(), "database")
-            ("coll,c", po::value<std::string>(&settings.collection)->required(), "collection")
             ("dropDb", po::value<bool>(&settings.dropDb)->default_value(false),
                     "DANGER: Drop the database")
             ("dropColl", po::value<bool>(&settings.dropColl)->default_value(false),
                     "DANGER: Drop the collection")
-            ("stopBalancer", po::value<bool>(&settings.stopBalancer)->default_value(true),
-                    "stop the balancer")
             ("shardKey,k", po::value<std::string>(&settings.shardKeyJson)->required(),
                     "Dotted fields not supported (i.e. subdoc.field) must quote fields "
                     "'(\"_id\":\"hashed\"'")
@@ -93,29 +110,18 @@ namespace loader {
             ("dispatch.ramQueueBatchSize,B",
                     po::value<size_t>(&settings.dispatchSettings.ramQueueBatchSize)
                     ->default_value(10000), "load queue size to pass on to dispatcher")
+        //Output Cluster
             ("output.bulkWriteVersion", po::value<int>(&settings.dispatchSettings.bulkWriteVersion)
                     ->default_value(0), "Write protocol to use: 0 = 2.4; 1 = 2.6")
             ("output.writeConcern,w", po::value<int>(&settings.dispatchSettings.writeConcern)
                     ->default_value(0), "write concern, # of nodes")
-            ("output.direct,D", po::value<bool>(&settings.outputEndPointSettings.directLoad)
-                    , "Directly load into mongoD, bypass mongoS")
-            ("output.batchMaxQueue", po::value<size_t>(&settings.outputEndPointSettings.maxQueueSize)
-                    ->default_value(100), "Maximum queue size for an end point before halting queue threads")
-            ("output.threads,e", po::value<size_t>(&settings.outputEndPointSettings.threadCount)
-                    ->default_value(2), "threads per end point")
-            ("output.LocklessMissWait", po::value<size_t>(&settings.outputEndPointSettings.sleepTime)
-                    ->default_value(10), "Wait time for mongo connections with a lockless miss method")
             ("output.sharded,s", po::value<bool>(&settings.sharded)->default_value(true), "Used a sharded setup")
-            ("input.direct,D", po::value<bool>(&settings.inputEndPointSettings.directLoad)
-                    , "Pull directly from mongoD, bypass mongoS")
-            //todo: make this a default of 0 and base on output queue size
-            ("input.batchMaxQueue", po::value<size_t>(&settings.inputEndPointSettings.maxQueueSize)
-                    ->default_value(10), "Maximum queue size for an end point before halting queue threads")
-            ("input.threads,e", po::value<size_t>(&settings.inputEndPointSettings.threadCount)
-                    ->default_value(2), "threads per end point")
-            ("input.LocklessMissWait", po::value<size_t>(&settings.inputEndPointSettings.sleepTime)
-                    ->default_value(10), "Wait time for mongo connections with a lockless miss method")
             ;
+        setClusterOptions("output.", &generic, &settings.output, &settings.outputEndPointSettings);
+        //Input Cluster
+        generic.add_options()
+            ;
+        setClusterOptions("input.", &generic, &settings.input, &settings.inputEndPointSettings);
         /*cmdline.add_options()
             ("config", po::value<std::string>(), "config file - NOT YET IMPLEMENTED")
             ;*/

@@ -52,16 +52,41 @@ namespace loader {
          */
         class Settings {
         public:
+            static const std::string MONGO_CLUSTER_INPUT;
+            class ClusterSettings {
+            public:
+                std::string uri;
+                mongo::ConnectionString cs;
+                bool stopBalancer;
+                std::string database;
+                std::string collection;
+                std::string ns() const {
+                    return database + "." + collection;
+                }
+
+                void validate() {
+                    if (database.empty())
+                        throw std::logic_error("Database is empty");
+                    if (collection.empty())
+                        throw std::logic_error("Collection is empty");
+
+                    if (uri.substr(0,mongo::uriStart.size()) != mongo::uriStart) {
+                        uri = mongo::uriStart + uri;
+                    }
+                    std::string error;
+                    cs = mongo::ConnectionString::parse(uri, error);
+                    if (!error.empty()) {
+                        std::cerr << "Unable to parse connection string: " << error << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                }
+            };
             using FieldKeys = std::vector<std::string>;
             std::string statsFile;
             std::string statsFileNote;
             std::string inputConfigString;
             std::string fileRegex;
             std::string inputType;
-            std::string connstr;
-            mongo::ConnectionString cs;
-            std::string database;
-            std::string collection;
             std::string workPath;
             std::string loadQueueJson;
             mongo::BSONObj loadQueueBson;
@@ -80,18 +105,15 @@ namespace loader {
             FieldKeys shardKeyFields;
             bool dropDb;
             bool dropColl;
-            bool stopBalancer;
             bool sharded;
             bool dropIndexes;
 
+            ClusterSettings input;
+            ClusterSettings output;
             docbuilder::InputNameSpaceContainer::Settings batcherSettings;
             dispatch::ChunkDispatcher::Settings dispatchSettings;
-            tools::mtools::MongoEndPointSettings outputEndPointSettings;
             tools::mtools::MongoEndPointSettings inputEndPointSettings;
-
-            std::string ns() const {
-                return database + "." + collection;
-            }
+            tools::mtools::MongoEndPointSettings outputEndPointSettings;
 
             /**
              * Check invariants and sets dependent settings

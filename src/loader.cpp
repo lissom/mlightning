@@ -32,7 +32,27 @@
 //TODO: Support replicas as single member shards
 namespace loader {
 
+    const std::string Loader::Settings::MONGO_CLUSTER_INPUT = "mongo";
+
     void Loader::Settings::process() {
+        try {
+            output.validate();
+        }
+        catch (std::exception &e) {
+            std::cerr << "Unable to validate output cluster: " << e.what() << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        if (inputType == MONGO_CLUSTER_INPUT) {
+            try {
+                input.validate();
+            }
+            catch (std::exception &e) {
+                std::cerr << "Unable to validate input cluster: " << e.what() << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+
         outputEndPointSettings.startImmediate = false;
         inputEndPointSettings.startImmediate = true;
         indexHas_id = false;
@@ -107,22 +127,14 @@ namespace loader {
             }
         }
 
-        if (outputEndPointSettings.directLoad) stopBalancer = true;
+        if (outputEndPointSettings.directLoad) output.stopBalancer = true;
+        if (inputEndPointSettings.directLoad) output.stopBalancer = true;
 
-        if (connstr.substr(0,mongo::uriStart.size()) != mongo::uriStart) {
-            connstr = mongo::uriStart + connstr;
-        }
-        std::string error;
-        cs = mongo::ConnectionString::parse(connstr, error);
-        if (!error.empty()) {
-            std::cerr << "Unable to parse connection string: " << error << std::endl;
-            exit(EXIT_FAILURE);
-        }
     }
 
     Loader::Loader(Settings settings) :
             _settings(std::move(settings)),
-            _mCluster (_settings.connstr),
+            _mCluster (_settings.output.uri),
             _ramMax (tools::getTotalSystemMemory()),
             _threadsMax (static_cast<size_t>(_settings.threads))
     {
@@ -133,11 +145,11 @@ namespace loader {
         _chunkDispatch.reset(new dispatch::ChunkDispatcher(_settings.dispatchSettings,
                                                            cluster(),
                                                            _endPoints.get(),
-                                                           _settings.ns()));
+                                                           _settings.output.ns()));
         _inputAggregator.reset(new docbuilder::InputNameSpaceContainer(queueSettings(),
                                              cluster(),
                                              &(chunkDispatcher()),
-                                             _settings.ns()));
+                                             _settings.output.ns()));
     }
 
     void Loader::setupLoad() {
@@ -150,7 +162,7 @@ namespace loader {
         }
 
         if (_mCluster.isSharded()) {
-            if (_settings.stopBalancer) _mCluster.balancerStop();
+            if (_settings.output.stopBalancer) _mCluster.balancerStop();
         }
         else {
             //Need to create fake shard info here
@@ -159,23 +171,23 @@ namespace loader {
 
         std::unique_ptr<mongo::DBClientBase> conn;
         std::string error;
-        conn.reset(_settings.cs.connect(error));
+        conn.reset(_settings.output.cs.connect(error));
         if (!error.empty()) {
             std::cerr << "Unable to connect to database: " << error << std::endl;
             exit(EXIT_FAILURE);
         }
 
         if (_settings.dropDb) {
-            conn->dropDatabase(_settings.database);
+            conn->dropDatabase(_settings.output.database);
         }
         else if (_settings.dropColl) {
-            conn->dropCollection(_settings.ns());
+            conn->dropCollection(_settings.output.ns());
         }
         else if (_settings.dropIndexes) {
-            conn->dropIndexes(_settings.ns());
+            conn->dropIndexes(_settings.output.ns());
         }
 
-        if (_mCluster.isSharded() && _settings.stopBalancer)
+        if (_mCluster.isSharded() && _settings.output.stopBalancer)
             if(_mCluster.stopBalancerWait(std::chrono::seconds(120))) {
                 std::cerr << "Unable to stop the balancer" << std::endl;
                 exit(EXIT_FAILURE);
@@ -184,7 +196,7 @@ namespace loader {
         if (_settings.sharded) {
             //TODO: make these checks more sophisticated (i.e. conditions already true? success!)
             mongo::BSONObj info;
-            if (!_mCluster.enableSharding(_settings.database, &info)) {
+            if (!_mCluster.enableSharding(_settings.output.database, &info)) {
                 if (info.getIntField("ok") != 0)
                     std::cerr << "Sharding db failed: " << info << std::endl;
                 info = mongo::BSONObj().getOwned();
@@ -192,16 +204,16 @@ namespace loader {
             assert(_settings.chunksPerShard > 0);
             if (_settings.hashed) {
                 int totalChunks = _settings.chunksPerShard * _mCluster.shards().size();
-                if (!_mCluster.shardCollection(_settings.ns(), _settings.shardKeysBson,
+                if (!_mCluster.shardCollection(_settings.output.ns(), _settings.shardKeysBson,
                                                _settings.shardKeyUnique, totalChunks, &info)) {
                     std::cerr << "Sharding collection failed: " << info << "\nExiting" << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                _mCluster.waitForChunksPerShard(_settings.ns(),_settings.chunksPerShard);
+                _mCluster.waitForChunksPerShard(_settings.output.ns(),_settings.chunksPerShard);
             }
             else {
                 //Don't do presplits for non-hashed here, no idea what the data is yet
-                if (!_mCluster.shardCollection(_settings.ns(), _settings.shardKeysBson,
+                if (!_mCluster.shardCollection(_settings.output.ns(), _settings.shardKeysBson,
                                                _settings.shardKeyUnique,  &info)) {
                     std::cerr << "Sharding collection failed: " << info << "\nExiting" << std::endl;
                     exit(EXIT_FAILURE);
@@ -248,7 +260,7 @@ namespace loader {
 
         std::unique_ptr<InputProcessorInterface> inputProcessor;
         inputProcessor.reset(new FileInputProcessor(this, _settings.threads, _settings.inputType,
-                                         _settings.inputConfigString, _settings.fileRegex, _settings.ns()));
+                                         _settings.inputConfigString, _settings.fileRegex, _settings.output.ns()));
         inputProcessor->run();
 
         std::this_thread::sleep_for(std::chrono::seconds(1));

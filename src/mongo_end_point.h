@@ -34,7 +34,7 @@ namespace tools {
             bool directLoad;
             size_t maxQueueSize;
             size_t threadCount;
-            size_t sleepTime;
+            size_t sleepTime = 10;
         };
 
         /**

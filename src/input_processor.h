@@ -34,14 +34,13 @@ namespace loader {
 
     class MongoInputProcessor : public InputProcessorInterface {
     public:
-        MongoInputProcessor(Loader* owner, size_t threads, std::string connStr) :
-            _mCluster(connStr) { }
+        MongoInputProcessor(Loader* owner, size_t threads, std::string connStr);
         void run() override;
         void waitEnd() override;
 
     private:
         tools::mtools::MongoCluster _mCluster;
-
+        EndPointHolder _endPoints;
     };
 
     /*
