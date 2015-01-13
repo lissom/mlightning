@@ -14,16 +14,17 @@ Written in C++, it requires the following to compile:
 
 This program has been verified to compile on Ubuntu 14.04 with gcc 4.8.2 (standard on ubuntu)
 
-#### gcc on Ubuntu 14.04
-	sudo apt-get install gcc
+#### gcc + g++ on Ubuntu 14.04
+	sudo apt-get install g++
 
 #### tcmalloc on Ubuntu 14.04
 	sudo apt-get install libtcmalloc-minimal4
 	cd /usr/lib
 	sudo ln -s libtcmalloc.so.4 libtcmalloc.so
+#    Alternatively you can install the full gperftools suite which includes tcmalloc
 
 #### Scons on Ubuntu 14.04
-	sudo apt-get install scons duplicity
+	sudo apt-get install scons
 
 #### Boost on Ubuntu 14.04
 	sudo apt-get install libboost-all-dev
