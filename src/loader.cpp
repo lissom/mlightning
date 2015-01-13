@@ -52,6 +52,12 @@ namespace loader {
                 exit(EXIT_FAILURE);
             }
         }
+        else {
+            if (loadPath.empty()) {
+                std::cerr << "No load path" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
 
         outputEndPointSettings.startImmediate = false;
         inputEndPointSettings.startImmediate = true;
@@ -260,7 +266,7 @@ namespace loader {
 
         std::unique_ptr<InputProcessorInterface> inputProcessor;
         inputProcessor.reset(new FileInputProcessor(this, _settings.threads, _settings.inputType,
-                                         _settings.inputConfigString, _settings.fileRegex, _settings.output.ns()));
+                                         _settings.loadPath, _settings.fileRegex, _settings.output.ns()));
         inputProcessor->run();
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
