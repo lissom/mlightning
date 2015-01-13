@@ -33,7 +33,8 @@
 namespace loader {
 
     void Loader::Settings::process() {
-        endPointSettings.startImmediate = false;
+        outputEndPointSettings.startImmediate = false;
+        inputEndPointSettings.startImmediate = true;
         indexHas_id = false;
         indexPos_id = size_t(-1);
         size_t count {};
@@ -70,7 +71,7 @@ namespace loader {
         batcherSettings.sortIndex = shardKeysBson;
 
         dispatchSettings.workPath = workPath;
-        dispatchSettings.directLoad = endPointSettings.directLoad;
+        dispatchSettings.directLoad = outputEndPointSettings.directLoad;
 
         loadQueueBson = mongo::fromjson(loadQueueJson);
         for (mongo::BSONObj::iterator i(loadQueueBson); i.more();) {
@@ -106,7 +107,7 @@ namespace loader {
             }
         }
 
-        if (endPointSettings.directLoad) stopBalancer = true;
+        if (outputEndPointSettings.directLoad) stopBalancer = true;
 
         if (connstr.substr(0,mongo::uriStart.size()) != mongo::uriStart) {
             connstr = mongo::uriStart + connstr;
@@ -128,7 +129,7 @@ namespace loader {
         _writeOps = 0;
         setupLoad();
         _mCluster.loadCluster();
-        _endPoints.reset(new EndPointHolder(settings.endPointSettings, cluster()));
+        _endPoints.reset(new EndPointHolder(settings.outputEndPointSettings, cluster()));
         _chunkDispatch.reset(new dispatch::ChunkDispatcher(_settings.dispatchSettings,
                                                            cluster(),
                                                            _endPoints.get(),
@@ -319,14 +320,14 @@ namespace loader {
             }
             statsfile << "\"" << timerLoad.seconds() << "\", "
                     << "\"" << loadSeconds / 60 << "m" << loadSeconds % 60 << "s" << "\", "
-                    << "\"" << _settings.endPointSettings.directLoad << "\", "
+                    << "\"" << _settings.outputEndPointSettings.directLoad << "\", "
                     << "\"" << _settings.inputType << "\", "
                     << "\"" << timerRead.seconds() << "\", "
                     << "\"" << _settings.shardKeyJson << "\", "
                     << "\"" << _settings.loadQueueJson << "\", "
                     << "\"" << _settings.batcherSettings.queueSize << "\", "
                     << "\"" << _settings.threads << "\", "
-                    << "\"" << _settings.endPointSettings.threadCount << "\", "
+                    << "\"" << _settings.outputEndPointSettings.threadCount << "\", "
                     << "\"" << _settings.dispatchSettings.writeConcern << "\", "
                     << "\"" << _settings.statsFileNote << "\""
                     << std::endl;

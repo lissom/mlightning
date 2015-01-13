@@ -86,7 +86,8 @@ namespace loader {
 
             docbuilder::InputNameSpaceContainer::Settings batcherSettings;
             dispatch::ChunkDispatcher::Settings dispatchSettings;
-            tools::mtools::MongoEndPointSettings endPointSettings;
+            tools::mtools::MongoEndPointSettings outputEndPointSettings;
+            tools::mtools::MongoEndPointSettings inputEndPointSettings;
 
             std::string ns() const {
                 return database + "." + collection;
