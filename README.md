@@ -21,7 +21,7 @@ This program has been verified to compile on Ubuntu 14.04 with gcc 4.8.2 (standa
 	sudo apt-get install libtcmalloc-minimal4
 	cd /usr/lib
 	sudo ln -s libtcmalloc.so.4 libtcmalloc.so
-#    Alternatively you can install the full gperftools suite which includes tcmalloc
+    (Alternatively you can install the full gperftools suite which includes tcmalloc)
 
 #### Scons on Ubuntu 14.04
 	sudo apt-get install scons
