@@ -7,14 +7,14 @@ mlightning is a tool designed to quickly load data into [MongoDB](http://www.mon
 
 Written in C++, it requires the following to compile:
 * C++11 support (gcc 4.8.2)
-* mongo-cxx-driver using the legacy branch, -std=c++11 is required.
+* mongo-cxx-driver using the legacy branch, the flag -std=c++11 is required.
 * boost - program options, system, regex, thread, chrono and filesystem.  Boost 1.55 in known to work, earlier versions may work, but this hasn't been tested.
 * scons (and therefore python)
 * tcmalloc (optional)
 
 This program has been verified to compile on Ubuntu 14.04 with gcc 4.8.2 (standard on ubuntu)
 
-#### gcc + g++ on Ubuntu 14.04
+#### gcc (g++) on Ubuntu 14.04
 	sudo apt-get install g++
 
 #### tcmalloc on Ubuntu 14.04
