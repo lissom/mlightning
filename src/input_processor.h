@@ -17,6 +17,7 @@
 
 #include "input_batcher.h"
 #include "input_format_file.h"
+#include "mongo_cluster.h"
 #include "mongo_cxxdriver.h"
 
 namespace loader {
@@ -34,13 +35,63 @@ namespace loader {
 
     class MongoInputProcessor : public InputProcessorInterface {
     public:
-        MongoInputProcessor(Loader* owner, size_t threads, std::string connStr);
+        MongoInputProcessor(Loader* const owner,
+            const tools::mtools::MongoEndPointSettings& inputSettings,
+            size_t threads,
+            std::string connStr,
+            std::string ns);
+        /**
+         * Pulls the data from the target intput database and puts it into the queues for processing
+         */
         void run() override;
+        /**
+         * Returns when all processing is completed
+         */
         void waitEnd() override;
 
     private:
+        using BsonContainer = tools::mtools::OpQueueQueryBulk::BsonContainer;
+
+        /*
+         * Print out the shard chunk stats left to process (totals before the run starts)
+         */
+        void displayChunkStats();
+        /**
+         * Function the process threads call to process to batches
+         */
+        void threadProcessLoop();
+        /**
+         * Setup the threads to process the query results into the batcher
+         */
+        void setupProcessLoops();
+        /**
+         * Sets up reading from the shards by chunk
+         */
+        void dispatchChunksForRead();
+        /**
+         * Pushes the data from the database operation onto the input queue
+         */
+        void inputQueryCallBack(tools::mtools::DbOp*, tools::mtools::OpReturnCode);
+
+        Loader* const _owner;
+        //Number of chunks that have not had their results queued
+        std::atomic<size_t> chunksRemaining{};
+        //Also atmoic just in case we multithread creation, costs <<<
+        std::atomic<size_t> chunksTotal{};
+        std::atomic<size_t> chunksProcessed{};
+        //Target input cluster
         tools::mtools::MongoCluster _mCluster;
+        //Ends points to target input cluster
         EndPointHolder _endPoints;
+        //Input namespace
+        const std::string _ns;
+        //Input shard key
+        const mongo::BSONObj _shardKey;
+        //Input chunks by shard, is drained eventually
+        tools::mtools::MongoCluster::ShardChunks _inputShardChunks;
+        //Query results are stored here while waiting for a thread to process them
+        tools::ConcurrentQueue<BsonContainer> _inputQueue;
+        std::unique_ptr<tools::ThreadPool> _tpBatcher;
     };
 
     /*
@@ -76,7 +127,7 @@ namespace loader {
         LocSegmentQueue _locSegmentQueue;
         tools::LocSegMapping _locSegMapping;
         std::atomic<std::size_t> _processedSegments{};
-        std::unique_ptr<tools::ThreadPool> _tpInput;
+        std::unique_ptr<tools::ThreadPool> _tpBatcher;
 
         Loader * const _owner;
         size_t _threads;
@@ -88,7 +139,7 @@ namespace loader {
         /**
          * This is where the threads do the actual work
          */
-        void threadProcessSegment();
+        void threadProcessLoop();
     };
 
     /*
@@ -98,7 +149,7 @@ namespace loader {
      */
     class DocumentProcessor : public docbuilder::DocumentBuilderInterface {
     public:
-        DocumentProcessor(Loader* owner);
+        DocumentProcessor(Loader* const owner);
         /**
          * A document is put in _doc and then it is processed
          * Done due to BSON ownership model

@@ -168,7 +168,7 @@ namespace loader {
         }
 
         if (_mCluster.isSharded()) {
-            if (_settings.output.stopBalancer) _mCluster.balancerStop();
+            if (_settings.output.stopBalancer) _mCluster.stopBalancer();
         }
         else {
             //Need to create fake shard info here

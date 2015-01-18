@@ -29,6 +29,7 @@
 
 namespace tools {
     namespace mtools {
+        //TODO: remove this from the tools namespace so it's just the mtools namespace
         //TODO: replace asserts with exceptions
         /*
          * Represents a mongo cluster
@@ -180,6 +181,10 @@ namespace tools {
                 return _nsTagRanges;
             }
 
+            /**
+             * Return the shard key for a given namespace
+             */
+            mongo::BSONObj getShardKeyAsBson(NameSpace ns);
 
             /**
              * All chunks for a single namespace
@@ -227,12 +232,12 @@ namespace tools {
             /**
              * Tell mongoS to stop the balancer
              */
-            void balancerStop();
+            void stopBalancer();
             /**
              * Stops the balancer and then checks to see if it is running
              * @return true if running, false if not
              */
-            bool stopBalancerWait(std::chrono::seconds wait);
+            bool stopBalancerWait(std::chrono::seconds wait = std::chrono::seconds(0));
 
             /**
              * Wait for all shards in a namespace to have X or more chunks

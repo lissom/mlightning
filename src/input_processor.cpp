@@ -17,24 +17,123 @@
 #include <boost/filesystem.hpp>
 #include "input_processor.h"
 #include "loader.h"
+#include <string.h>
 #include "util/hasher.h"
 
 namespace loader {
 
 
-    MongoInputProcessor::MongoInputProcessor(Loader* owner, size_t threads, std::string connStr) :
+    MongoInputProcessor::MongoInputProcessor(Loader* const owner,
+            const tools::mtools::MongoEndPointSettings& inputSettings,
+            size_t threads,
+            std::string connStr,
+            std::string ns) :
+        _owner(owner),
         _mCluster(connStr),
-        _endPoints(owner->settings().inputEndPointSettings, _mCluster)
-        {}
+        _endPoints(inputSettings, _mCluster),
+        _ns(std::move(ns)),
+        _shardKey(_mCluster.getShardKeyAsBson(_ns)),
+        _tpBatcher(new tools::ThreadPool(threads)) {}
 
     void MongoInputProcessor::run() {
-        _mCluster.nsChunks("");
+        std::cout << "Stopping balancer for " << _mCluster.connStr().toString();
+        _mCluster.stopBalancerWait();
+        auto _inputShardChunks = _mCluster.getShardChunks();
+        if (_inputShardChunks.empty()) {
+            std::cerr << "There were no chunks found\nExiting" << std::endl;
+            //Assuming there were supposed to be chunks this is an error
+            exit(EXIT_FAILURE);
+        }
+        displayChunkStats();
+        dispatchChunksForRead();
+        setupProcessLoops();
+        _tpBatcher->endWait();
+    }
+
+    void MongoInputProcessor::displayChunkStats() {
+        //Output size of chunks
+        std::cout << "Shard name: Chunk count";
+        for (auto&& shardChunks: _inputShardChunks)
+            std::cout << "\n" << shardChunks.first << ": " << shardChunks.second.size();
+        std::cout << std::endl;
+    }
+
+    void MongoInputProcessor::threadProcessLoop() {
+        DocumentProcessor dp(_owner);
+        BsonContainer data;
+        for (;;) {
+            //Check if there is work to do, if not and there is future work, sleep 1s
+            if (!_inputQueue.pop(data)) {
+                if (chunksRemaining == 0)
+                    break;
+                else
+                    sleep(1);
+            }
+            for(auto&& itr: data) {
+                dp.doc = itr;
+                dp.process();
+            }
+            data.clear();
+        }
+    }
+
+    void MongoInputProcessor::setupProcessLoops() {
+        //If chunksRemaining isn't > 0 the processing can terminate prematurely
+        assert(chunksRemaining > 0);
+        for (size_t i = 0; i < _tpBatcher->size(); i++)
+            _tpBatcher->queue([this]() {this->threadProcessLoop();});
+        _tpBatcher->endWaitInitiate();
+    }
+
+    void MongoInputProcessor::dispatchChunksForRead() {
+        //todo: should change this to iterate by shard (i.e. while (shardChunks.size() .. for(.. if !size remove))
+        //todo: may need to run in a different context for extremely large chunk counts so things kick off immediately
+        auto shardKeySize = _shardKey.nFields();
+        for (auto&& shardChunks: _inputShardChunks) {
+            auto endPoint = _endPoints.at(shardChunks.first);
+            for (auto&& chunks: shardChunks.second) {
+                mongo::BSONObjBuilder query;
+                mongo::BSONObjIterator keyItr(_shardKey);
+                mongo::BSONObjIterator maxItr(chunks.max);
+                mongo::BSONObjIterator minItr(chunks.min);
+                for (int count = 0; count < shardKeySize; ++count) {
+                    //Ensure that mongo has valid shard key forms
+                    assert(maxItr.more());
+                    assert(minItr.more());
+                    auto key = keyItr.next();
+                    auto max = maxItr.next();
+                    auto min = minItr.next();
+                    //Ensure the field names are the same
+                    assert(strcmp(key.fieldName(), max.fieldName()) == 0);
+                    assert(strcmp(key.fieldName(), min.fieldName()) == 0);
+                    query.append(key.fieldName(), BSON(mongo::LT << max));
+                    query.append(key.fieldName(), BSON(mongo::GTE << min));
+                }
+                endPoint->push(tools::mtools::OpQueueQueryBulk::make(
+                        [this](tools::mtools::DbOp* op, tools::mtools::OpReturnCode status) {
+                                                    this->inputQueryCallBack(op, status);
+                                                },
+                    _ns,
+                    query.obj()));
+                ++chunksRemaining;
+                ++chunksTotal;
+            }
+        }
+    }
+
+    void MongoInputProcessor::inputQueryCallBack(tools::mtools::DbOp* dbOp__,
+            tools::mtools::OpReturnCode status__) {
+        auto dbOp = static_cast<tools::mtools::OpQueueQueryBulk*>(dbOp__);
+        _inputQueue.push(std::move(dbOp->_data));
     }
 
     void MongoInputProcessor::waitEnd() {
-
+        _tpBatcher->joinAll();
+        if (chunksProcessed == chunksTotal) {
+            std::cerr << "Not all chunks were processed\nExiting" << std::endl;
+            exit(EXIT_FAILURE);
+        }
     }
-
 
     void FileInputProcessor::run() {
         //Ensure the directory exists
@@ -104,7 +203,6 @@ namespace loader {
         //Insert the segments into the queue for the threads to consume
         LocSegmentQueue::ContainerType fileQ(_locSegMapping.begin(), _locSegMapping.end());
         _locSegmentQueue.swap(fileQ);
-
         std::cout << "Dir: " << loadDir << "\nSegments: " << _locSegmentQueue.size()
                   << "\nKicking off run" << std::endl;
 
@@ -113,15 +211,14 @@ namespace loader {
          */
         size_t inputThreads = _threads > _locSegmentQueue.size() ? _locSegmentQueue.size()
                 : _threads;
-
-        _tpInput.reset(new tools::ThreadPool(inputThreads));
+        _tpBatcher.reset(new tools::ThreadPool(inputThreads));
         for (size_t i = 0; i < inputThreads; i++)
-            _tpInput->queue([this]() {this->threadProcessSegment();});
-        _tpInput->endWaitInitiate();
+            _tpBatcher->queue([this]() {this->threadProcessLoop();});
+        _tpBatcher->endWaitInitiate();
 
     }
 
-    void FileInputProcessor::threadProcessSegment() {
+    void FileInputProcessor::threadProcessLoop() {
         FileSegmentProcessor lsp(_owner, _owner->settings().inputType);
         tools::LocSegment segment;
         for (;;) {
@@ -134,7 +231,7 @@ namespace loader {
     }
 
     void FileInputProcessor::waitEnd() {
-        _tpInput->joinAll();
+        _tpBatcher->joinAll();
         //Make sure that all segments have been processed, invariant
         if (_processedSegments != _locSegMapping.size()) {
             std::cerr << "Error: not all segments processed. Total segments: "
@@ -145,7 +242,7 @@ namespace loader {
     }
 
     //TODO::clean this up and not pass owner
-    DocumentProcessor::DocumentProcessor(Loader* owner) :
+    DocumentProcessor::DocumentProcessor(Loader* const owner) :
             _owner(owner),
             _add_id(_owner->settings().indexHas_id && _owner->settings().add_id),
             _keys(_owner->settings().shardKeysBson),

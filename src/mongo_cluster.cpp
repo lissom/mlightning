@@ -171,6 +171,15 @@ namespace tools {
             return std::move(shardMap);
         }
 
+        //todo: have this function support non-sharded collections, return _id
+        mongo::BSONObj MongoCluster::getShardKeyAsBson(NameSpace ns) {
+            const auto projection = BSON("key" << 1);
+            auto keyField = _dbConn->findOne("config.collections", BSON("_id" << ns), &projection);
+            if (keyField.isEmpty())
+                throw std::logic_error("No records for that collection exist");
+            return keyField.getObjectField("key").getOwned();
+        }
+
         bool MongoCluster::balancerIsRunning() {
             mongo::Cursor cursor = _dbConn->query("config.locks", BSON("state" << BSON("$gt" << 0)));
             if (!cursor->more())
@@ -178,7 +187,7 @@ namespace tools {
             return true;
         }
 
-        void MongoCluster::balancerStop() {
+        void MongoCluster::stopBalancer() {
             mongo::BSONObj query = BSON("_id" << "balancer");
             mongo::BSONObj update = BSON("$set" << BSON("stopped" << true));
             mongo::BSONObj info;
@@ -187,7 +196,7 @@ namespace tools {
         }
 
         bool MongoCluster::stopBalancerWait(std::chrono::seconds wait) {
-            balancerStop();
+            stopBalancer();
             if (wait > std::chrono::seconds(0)) {
                 using time = std::chrono::high_resolution_clock;
                 time::time_point start = time::now();
@@ -207,10 +216,9 @@ namespace tools {
         void MongoCluster::waitForChunksPerShard(std::string ns, int chunksPerShard) {
             mongo::BSONObj aggOpts = mongo::BSONObjBuilder().append("allowDiskUse", true)
                         .append("cursor", BSON("batchSize" << 10000)).obj();
-
+            //Get the numbers returned in case we ever want to output
             mongo::BSONObj agg = BSON_ARRAY(BSON("$match" << BSON("ns" << ns))
                     << BSON("$group" << BSON("_id" << "$shard" << "chunkCount" << BSON("$sum" << 1))));
-
             bool done;
             do {
                 done = true;

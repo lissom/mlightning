@@ -25,6 +25,7 @@
 
 namespace tools {
     namespace mtools {
+        //todo: pull this out of tools so it is only the mtools namespace
 
         /*
          * The settings for an MongoEndPoint.  The settings aren't a template so they are a separate.
@@ -61,6 +62,7 @@ namespace tools {
                 assert(settings.threadCount);
                 if (settings.startImmediate) start();
             }
+
             ~BasicMongoEndPoint() {
                 shutdown();
             }
@@ -131,8 +133,8 @@ namespace tools {
 
             /**
              * thread work loop
-             *
              */
+            //todo: change this for locked operations, move out and use specializations for locks
             void run() {
                 //dbConn used in exception catching to see what db is connected to
                 mongo::DBClientBase* dbConn = nullptr;
@@ -307,8 +309,6 @@ namespace tools {
             typename MongoEndPointMap::iterator _cycleItr;
             MongoEndPointMap _epm;
             bool _started;
-
         };
-
     }  //namespace mtools
 }  //namespace tools

@@ -45,8 +45,8 @@ namespace tools {
          */
         struct DbOp {
         public:
-            using callBackFun = std::function<void(DbOp &, OpReturnCode)>;
-            DbOp(callBackFun callBack = emptyCallBack) : _callBack(callBack = emptyCallBack) {};
+            using callBackFun = std::function<void(DbOp*, OpReturnCode)>;
+            DbOp(callBackFun callBack__ = &emptyCallBack) : _callBack(callBack__) {};
             virtual ~DbOp() {}
             /**
              * Executes the operation against the database connection
@@ -54,11 +54,13 @@ namespace tools {
              */
             OpReturnCode execute(Connection* const conn) {
                 OpReturnCode retVal = run(conn);
-                _callBack(*this, retVal);
+                _callBack(this, retVal);
                 return retVal;
             }
 
-            static void emptyCallBack(DbOp &, OpReturnCode) {};
+            //fully qualified so this can be copy and pasted
+            static void emptyCallBack(tools::mtools::DbOp* op__,
+                    tools::mtools::OpReturnCode status__) {};
 
             callBackFun _callBack;
 
@@ -198,14 +200,16 @@ namespace tools {
          * the size of the result set is known to be constrained.
          */
         struct OpQueueQueryBulk : public DbOp {
+            using BsonContainer = std::deque<mongo::BSONObj>;
+
             OpQueueQueryBulk(callBackFun callBack,
                             const std::string ns,
                             const mongo::Query query,
-                            const mongo::BSONObj* const fieldsToReturn,
-                            const int queryOptions) :
+                            const mongo::BSONObj* const fieldsToReturn = nullptr,
+                            const int queryOptions = 0) :
                             DbOp(callBack),
-                            _ns(ns),
-                            _query(query),
+                            _ns(std::move(ns)),
+                            _query(std::move(query)),
                             _fieldsToReturn(fieldsToReturn),
                             _queryOptions(queryOptions) {}
 
@@ -215,7 +219,11 @@ namespace tools {
                                     const mongo::BSONObj* const fieldsToReturn = 0,
                                     int queryOptions = 0)
             {
-                return DbOpPointer(new OpQueueQueryBulk(callBack, ns, query, fieldsToReturn, queryOptions));
+                return DbOpPointer(new OpQueueQueryBulk(callBack,
+                        std::move(ns),
+                        std::move(query),
+                        fieldsToReturn,
+                        queryOptions));
             }
 
             std::deque<mongo::BSONObj>& data() { return _data; }
@@ -228,7 +236,7 @@ namespace tools {
 
             mongo::Cursor _cursor;
             mongo::Connection _connection;
-            std::deque<mongo::BSONObj> _data;
+            BsonContainer _data;
 
         protected:
             OpReturnCode run(Connection* const conn);
