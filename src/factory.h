@@ -42,7 +42,11 @@ namespace tools {
          *
          * @return to ensure that static bools can be used with this function to setup the factory
          */
-        static bool registerCreator(Key key, Factory&& factory) {
+        static bool registerCreator(Key&& key, Factory&& factory) {
+            assert(getMap().insert(std::make_pair(std::forward<Key>(key), std::forward<Factory>(factory))).second);
+            return true;
+        }
+        static bool registerCreator(const Key& key, Factory&& factory) {
             assert(getMap().insert(std::make_pair(key, std::forward<Factory>(factory))).second);
             return true;
         }
