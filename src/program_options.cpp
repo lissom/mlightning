@@ -33,8 +33,7 @@ namespace loader {
         namespace po = boost::program_options;
         void setClusterOptions(const std::string& prefix,
             po::options_description* desc,
-            Loader::Settings::ClusterSettings* clusterSettings,
-            tools::mtools::MongoEndPointSettings* endPointSettings) {
+            Loader::Settings::ClusterSettings* clusterSettings) {
             desc->add_options()
                 (std::string(prefix + "uri").c_str(), po::value<std::string>(&clusterSettings->uri)
                         ->default_value("mongodb://127.0.0.1:27017"), "mongodb connection URI")
@@ -42,11 +41,11 @@ namespace loader {
                 (std::string(prefix + "coll").c_str(), po::value<std::string>(&clusterSettings->collection), "collection")
                 (std::string(prefix + "stopBalancer").c_str(), po::value<bool>(&clusterSettings->stopBalancer)->default_value(true),
                         "stop the balancer")
-                (std::string(prefix + "direct").c_str(), po::value<bool>(&endPointSettings->directLoad)
+                (std::string(prefix + "direct").c_str(), po::value<bool>(&clusterSettings->endPoints.directLoad)
                         , "In sharded configs, don't use mongoS")
-                (std::string(prefix + "batchMaxQueue").c_str(), po::value<size_t>(&endPointSettings->maxQueueSize)
+                (std::string(prefix + "batchMaxQueue").c_str(), po::value<size_t>(&clusterSettings->endPoints.maxQueueSize)
                         ->default_value(100), "End point queue size")
-                (std::string(prefix + "threads").c_str(), po::value<size_t>(&endPointSettings->threadCount)
+                (std::string(prefix + "threads").c_str(), po::value<size_t>(&clusterSettings->endPoints.threadCount)
                         ->default_value(2), "Threads per end point")
                 /*(std::string(prefix + "locklessMissWait").c_str(), po::value<size_t>(&endPointSettings->sleepTime)
                         ->default_value(10), "Lockless end points miss wait")*/;
@@ -70,7 +69,7 @@ namespace loader {
                 "\nCurrently supported: "
                 + loader::docbuilder::ChunkBatchFactory::getKeysPretty() + "\nDirect between 10 and 100 is recommended";
         const std::string supportedInputTypes = "Input types: " +
-                loader::Loader::Settings::inputTypesPretty() + ", " + Loader::Settings::MONGO_CLUSTER_INPUT;
+                loader::InputProcessorFactory::getKeysPretty();
         generic.add_options()
             ("help,h", "print this help message")
             ("record.statFile,S", po::value<std::string>(&settings.statsFile),
@@ -117,11 +116,11 @@ namespace loader {
                     ->default_value(0), "write concern, # of nodes")
             ("output.sharded,s", po::value<bool>(&settings.sharded)->default_value(true), "Used a sharded setup")
             ;
-        setClusterOptions("output.", &generic, &settings.output, &settings.outputEndPointSettings);
+        setClusterOptions("output.", &generic, &settings.output);
         //Input Cluster
         generic.add_options()
             ;
-        setClusterOptions("input.", &generic, &settings.input, &settings.inputEndPointSettings);
+        setClusterOptions("input.", &generic, &settings.input);
         /*cmdline.add_options()
             ("config", po::value<std::string>(), "config file - NOT YET IMPLEMENTED")
             ;*/

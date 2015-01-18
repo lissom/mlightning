@@ -33,13 +33,27 @@ namespace loader {
         virtual void waitEnd() = 0;
     };
 
+    /**
+     * Pointer returned by factory functions
+     */
+    using InputProcessorInterfacePtr = std::unique_ptr<InputProcessorInterface>;
+
+    /**
+     * Factory function signature
+     */
+    using CreateInputProcessorFunction =
+            std::function<InputProcessorInterfacePtr(Loader* const)>;
+
+    /*
+     * Factory
+     */
+    using InputProcessorFactory = tools::RegisterFactory<InputProcessorInterfacePtr,
+            CreateInputProcessorFunction>;
+
+
     class MongoInputProcessor : public InputProcessorInterface {
     public:
-        MongoInputProcessor(Loader* const owner,
-            const tools::mtools::MongoEndPointSettings& inputSettings,
-            size_t threads,
-            std::string connStr,
-            std::string ns);
+        MongoInputProcessor(Loader* const owner);
         /**
          * Pulls the data from the target intput database and puts it into the queues for processing
          */
@@ -48,6 +62,10 @@ namespace loader {
          * Returns when all processing is completed
          */
         void waitEnd() override;
+
+        static InputProcessorInterfacePtr create(Loader* const loader) {
+            return InputProcessorInterfacePtr(new MongoInputProcessor(loader));
+        }
 
     private:
         using BsonContainer = tools::mtools::OpQueueQueryBulk::BsonContainer;
@@ -92,6 +110,8 @@ namespace loader {
         //Query results are stored here while waiting for a thread to process them
         tools::ConcurrentQueue<BsonContainer> _inputQueue;
         std::unique_ptr<tools::ThreadPool> _tpBatcher;
+
+        static const bool _registerFactory;
     };
 
     /*
@@ -102,13 +122,8 @@ namespace loader {
     public:
         //Minimum average size that needs to be exceeded for a split
         static constexpr unsigned long long OVERAGE_SIZE = 100 * 1024 * 1024;
-        FileInputProcessor(Loader* owner, size_t threads, std::string inputType,
-                           std::string loadDir, std::string fileRegex,
-                           tools::mtools::MongoCluster::NameSpace ns) :
-            _owner(owner), _threads(threads), _inputType(inputType), _loadDir(std::move(loadDir)),
-            _fileRegex(std::move(fileRegex)), _ns(std::move(ns))
-        { }
 
+        FileInputProcessor(Loader* owner);
         /**
          * Do the work
          */
@@ -120,7 +135,17 @@ namespace loader {
          */
         void waitEnd() override;
 
+        static std::unique_ptr<InputProcessorInterface> create(Loader* const loader) {
+            return std::unique_ptr<InputProcessorInterface>(new FileInputProcessor(loader));
+        }
+
+
     private:
+        /**
+         * This is where the threads do the actual work
+         */
+        void threadProcessLoop();
+
         const bool allowInputSplits() const { return _inputType == "json"; }
 
         using LocSegmentQueue = tools::ConcurrentQueue<tools::LocSegment>;
@@ -136,10 +161,8 @@ namespace loader {
         const std::string _fileRegex;
         const tools::mtools::MongoCluster::NameSpace _ns;
 
-        /**
-         * This is where the threads do the actual work
-         */
-        void threadProcessLoop();
+        static const bool _registerFactoryJson;
+        static const bool _registerFactoryBson;
     };
 
     /*

@@ -52,7 +52,6 @@ namespace loader {
          */
         class Settings {
         public:
-            static const std::string MONGO_CLUSTER_INPUT;
             class ClusterSettings {
             public:
                 std::string uri;
@@ -60,6 +59,7 @@ namespace loader {
                 bool stopBalancer;
                 std::string database;
                 std::string collection;
+                tools::mtools::MongoEndPointSettings endPoints;
                 std::string ns() const {
                     return database + "." + collection;
                 }
@@ -112,8 +112,6 @@ namespace loader {
             ClusterSettings output;
             docbuilder::InputNameSpaceContainer::Settings batcherSettings;
             dispatch::ChunkDispatcher::Settings dispatchSettings;
-            tools::mtools::MongoEndPointSettings inputEndPointSettings;
-            tools::mtools::MongoEndPointSettings outputEndPointSettings;
 
             /**
              * Check invariants and sets dependent settings

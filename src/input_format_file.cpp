@@ -9,12 +9,13 @@
 
 #include <assert.h>
 #include <iostream>
+#include "input_types.h"
 
 namespace loader {
 
-    const bool InputFormatJson::_registerFactory = InputFormatFactory::registerCreator("json",
+    const bool InputFormatJson::_registerFactory = InputFormatFactory::registerCreator(JSON_INPUT,
                                                                            &InputFormatJson::create);
-    const bool InputFormatBson::_registerFactory = InputFormatFactory::registerCreator("bson",
+    const bool InputFormatBson::_registerFactory = InputFormatFactory::registerCreator(BSON_INPUT,
                                                                                &InputFormatBson::create);
 
     void InputFormatJson::reset(tools::LocSegment segment)

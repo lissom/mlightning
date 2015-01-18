@@ -15,25 +15,28 @@
 
 #include <regex>
 #include <boost/filesystem.hpp>
-#include "input_processor.h"
 #include "loader.h"
+#include "input_processor.h"
+#include "input_types.h"
 #include <string.h>
 #include "util/hasher.h"
 
 namespace loader {
 
+    const bool MongoInputProcessor::_registerFactory = InputProcessorFactory::registerCreator(
+            MONGO_CLUSTER_INPUT, &MongoInputProcessor::create);
+    const bool FileInputProcessor::_registerFactoryJson = InputProcessorFactory::registerCreator(
+            JSON_INPUT, &FileInputProcessor::create);
+    const bool FileInputProcessor::_registerFactoryBson = InputProcessorFactory::registerCreator(
+            BSON_INPUT, FileInputProcessor::create);
 
-    MongoInputProcessor::MongoInputProcessor(Loader* const owner,
-            const tools::mtools::MongoEndPointSettings& inputSettings,
-            size_t threads,
-            std::string connStr,
-            std::string ns) :
+    MongoInputProcessor::MongoInputProcessor(Loader* const owner) :
         _owner(owner),
-        _mCluster(connStr),
-        _endPoints(inputSettings, _mCluster),
-        _ns(std::move(ns)),
+        _mCluster(_owner->settings().input.uri),
+        _endPoints(_owner->settings().input.endPoints, _mCluster),
+        _ns(_owner->settings().input.ns()),
         _shardKey(_mCluster.getShardKeyAsBson(_ns)),
-        _tpBatcher(new tools::ThreadPool(threads)) {}
+        _tpBatcher(new tools::ThreadPool(_owner->settings().threads)) {}
 
     void MongoInputProcessor::run() {
         std::cout << "Stopping balancer for " << _mCluster.connStr().toString();
@@ -134,6 +137,15 @@ namespace loader {
             exit(EXIT_FAILURE);
         }
     }
+
+    FileInputProcessor::FileInputProcessor(Loader* owner) :
+        _owner(owner),
+        _threads(owner->settings().threads),
+        _inputType(owner->settings().inputType),
+        _loadDir(owner->settings().loadPath),
+        _fileRegex(owner->settings().fileRegex),
+        _ns(owner->settings().output.ns())
+    { }
 
     void FileInputProcessor::run() {
         //Ensure the directory exists

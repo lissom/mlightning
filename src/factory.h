@@ -16,7 +16,7 @@
 #pragma once
 
 #include <assert.h>
-#include <map>
+#include <unordered_map>
 #include <type_traits>
 #include <memory>
 #include <string>
@@ -40,10 +40,10 @@ namespace tools {
          * Registers the function to create the object.
          * If that behavior is desired, create an unregister function
          *
-         * @return to ensure that statics can be used with this function to setup the factory
+         * @return to ensure that static bools can be used with this function to setup the factory
          */
-        static bool registerCreator(Key&& key, Factory&& factory) {
-            assert(getMap().insert(std::make_pair(std::forward<Key>(key), std::forward<Factory>(factory))).second);
+        static bool registerCreator(Key key, Factory&& factory) {
+            assert(getMap().insert(std::make_pair(key, std::forward<Factory>(factory))).second);
             return true;
         }
 
@@ -79,7 +79,7 @@ namespace tools {
     template<typename ObjectPtr,
         typename Factory,
         typename Key = std::string,
-        typename Map = std::map<Key, Factory>> using
+        typename Map = std::unordered_map<Key, Factory>> using
             RegisterFactory = RegisterFactoryImpl<ObjectPtr, Factory, Key, Map>;
 
 }  //namespace tools

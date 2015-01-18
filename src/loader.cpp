@@ -19,6 +19,7 @@
 #include <iostream>
 #include <tuple>
 #include "input_processor.h"
+#include "input_types.h"
 #include "mongo_cxxdriver.h"
 
 /*
@@ -31,8 +32,6 @@
 //TODO: Allow for secondary sort key outside of the shard key
 //TODO: Support replicas as single member shards
 namespace loader {
-
-    const std::string Loader::Settings::MONGO_CLUSTER_INPUT = "mongo";
 
     void Loader::Settings::process() {
         try {
@@ -59,8 +58,8 @@ namespace loader {
             }
         }
 
-        outputEndPointSettings.startImmediate = false;
-        inputEndPointSettings.startImmediate = true;
+        output.endPoints.startImmediate = false;
+        input.endPoints.startImmediate = true;
         indexHas_id = false;
         indexPos_id = size_t(-1);
         size_t count {};
@@ -97,7 +96,7 @@ namespace loader {
         batcherSettings.sortIndex = shardKeysBson;
 
         dispatchSettings.workPath = workPath;
-        dispatchSettings.directLoad = outputEndPointSettings.directLoad;
+        dispatchSettings.directLoad = output.endPoints.directLoad;
 
         loadQueueBson = mongo::fromjson(loadQueueJson);
         for (mongo::BSONObj::iterator i(loadQueueBson); i.more();) {
@@ -133,8 +132,8 @@ namespace loader {
             }
         }
 
-        if (outputEndPointSettings.directLoad) output.stopBalancer = true;
-        if (inputEndPointSettings.directLoad) output.stopBalancer = true;
+        if (output.endPoints.directLoad) output.stopBalancer = true;
+        if (input.endPoints.directLoad) output.stopBalancer = true;
 
     }
 
@@ -147,7 +146,7 @@ namespace loader {
         _writeOps = 0;
         setupLoad();
         _mCluster.loadCluster();
-        _endPoints.reset(new EndPointHolder(settings.outputEndPointSettings, cluster()));
+        _endPoints.reset(new EndPointHolder(settings.output.endPoints, cluster()));
         _chunkDispatch.reset(new dispatch::ChunkDispatcher(_settings.dispatchSettings,
                                                            cluster(),
                                                            _endPoints.get(),
@@ -264,9 +263,8 @@ namespace loader {
                   << std::endl;
 
 
-        std::unique_ptr<InputProcessorInterface> inputProcessor;
-        inputProcessor.reset(new FileInputProcessor(this, _settings.threads, _settings.inputType,
-                                         _settings.loadPath, _settings.fileRegex, _settings.output.ns()));
+        std::unique_ptr<InputProcessorInterface> inputProcessor(
+                InputProcessorFactory::createObject(_settings.inputType, this));
         inputProcessor->run();
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -338,14 +336,14 @@ namespace loader {
             }
             statsfile << "\"" << timerLoad.seconds() << "\", "
                     << "\"" << loadSeconds / 60 << "m" << loadSeconds % 60 << "s" << "\", "
-                    << "\"" << _settings.outputEndPointSettings.directLoad << "\", "
+                    << "\"" << _settings.output.endPoints.directLoad << "\", "
                     << "\"" << _settings.inputType << "\", "
                     << "\"" << timerRead.seconds() << "\", "
                     << "\"" << _settings.shardKeyJson << "\", "
                     << "\"" << _settings.loadQueueJson << "\", "
                     << "\"" << _settings.batcherSettings.queueSize << "\", "
                     << "\"" << _settings.threads << "\", "
-                    << "\"" << _settings.outputEndPointSettings.threadCount << "\", "
+                    << "\"" << _settings.output.endPoints.threadCount << "\", "
                     << "\"" << _settings.dispatchSettings.writeConcern << "\", "
                     << "\"" << _settings.statsFileNote << "\""
                     << std::endl;
