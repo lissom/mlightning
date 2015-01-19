@@ -191,9 +191,6 @@ namespace tools {
         }
 
     private:
-        using iterator = typename ContainerType::iterator;
-        using reverse_iterator = std::reverse_iterator<iterator>;
-
         ContainerType _container;
         mutable std::unique_ptr<Mutex> _mutex;
         mutable std::unique_ptr<ConditionVariable> _maxSizeNotify;
