@@ -50,11 +50,23 @@ namespace tools {
         {
         }
 
+        /**
+         * Swaps the container with the one given.
+         * @from the container to swap from.  from must be safe for writes.
+         */
         void swap(ContainerType& from) noexcept {
             MutexLockGuard lock(*_mutex);
             _container.swap(from);
         }
 
+        /**
+         * Returns a value form the container.  As the return is a move if destruction is expensive
+         * it's good hygiene to pass something empty or otherwise in a cheap state to destroy as
+         * the destruction takes place inside the lock.
+         *
+         * @param ret This value has the value in the container moved it
+         * @return Returns true if there is a value to return
+         */
         bool pop(value_type& ret) noexcept {
             MutexLockGuard lock(*_mutex);
             if (_container.empty()) return false;
@@ -187,7 +199,7 @@ namespace tools {
         ContainerType _container;
         mutable std::unique_ptr<Mutex> _mutex;
         mutable std::unique_ptr<ConditionVariable> _sizeMaxNotify;
-        volatile size_t _sizeMax {};
+        size_t _sizeMax{};
     };
 
     template<typename Value, template<typename, typename > class Container = std::deque> using ConcurrentQueue = BasicConcurrentQueue<Value, Container>;
