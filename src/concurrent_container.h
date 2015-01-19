@@ -24,31 +24,17 @@
 namespace tools {
 
     /**
-     * BasicConcurrentQueue is a thread safe queue.  It sorts on demand.
-     * There is a method to unsafely access it so that different sorting can be used.
-     *
-     * This also supports the concept of max size and waiting for and notifying on it
-     * Max size is lazily set to converge (that means it's safe with Intel basically) on RISC
-     * you may get differing sizes, it shouldn't matter as long as that isn't going to break
-     * things, in the code here it shoudln't.
-     *
-     * Max size is* not* enforced, the users need to call the checking functions if that is desired.
+     * BasicConcurrentQueue is a thread safe queue.
+     * It sorts on demand.  There is a method to unsafely access for different sorting.
      */
-    template<typename _Tp, template<typename, typename > class _Tc>
+    template<typename _Tp, template<typename, typename> class _Tc>
     class BasicConcurrentQueue {
     public:
-        typedef _Tp value_type;
-        typedef value_type ValueType;
-        typedef _Tc<_Tp, std::allocator<_Tp>> ContainerType;
-
-        //TODO: check for move or copy construct and do w/e can be done.
-        static_assert(std::is_constructible<value_type, typename ContainerType::value_type>::value,
-                "Cannot copy construct return value from container value.");
+        using ValueType = _Tp;
+        using ContainerType = _Tc<_Tp, std::allocator<_Tp>>;
 
         BasicConcurrentQueue() :
-                _mutex(new Mutex), _sizeMaxNotify(new ConditionVariable)
-        {
-        }
+                _mutex(new Mutex), _maxSizeNotify(new ConditionVariable) { }
 
         /**
          * Swaps the container with the one given.
@@ -67,26 +53,30 @@ namespace tools {
          * @param ret This value has the value in the container moved it
          * @return Returns true if there is a value to return
          */
-        bool pop(value_type& ret) noexcept {
+        bool pop(ValueType& ret) noexcept {
             MutexLockGuard lock(*_mutex);
             if (_container.empty()) return false;
             ret = (std::move(_container.front()));
             _container.pop_front();
-            _sizeMaxNotify->notify_one();
+            _maxSizeNotify->notify_one();
             return true;
         }
 
-        void push(value_type value) {
+        /**
+         * Push a value onto the container
+         */
+        void push(ValueType&& value) {
             MutexLockGuard lock(*_mutex);
-            _container.push_back(std::move(value));
+            _container.push_back(std::forward<ValueType>(value));
         }
 
         /*
-         * push and get the containers size
+         * Push and get the containers size
+         * @return the size() of the underlying container
          */
-        size_t pushGetSize(value_type value) {
+        size_t pushGetSize(ValueType&& value) {
             MutexLockGuard lock(*_mutex);
-            _container.push_back(std::move(value));
+            _container.push_back(std::forward(value));
             return _container.size();
         }
 
@@ -94,11 +84,11 @@ namespace tools {
          * Push to the queue and check to see if the max size is reached, wait for a pull if not
          * and then push.
          */
-        void pushCheckMax(value_type value) {
+        void pushCheckMax(ValueType value) {
             MutexUniqueLock lock(*_mutex);
-            _sizeMaxNotify->wait(lock, [this]()
-            {   return this->_sizeMax && (this->_container.size() >
-                        this->_sizeMax);});
+            _maxSizeNotify->wait(lock, [this]()
+            {   return this->_maxSize && (this->_container.size() >
+                        this->_maxSize);});
             _container.push_back(std::move(value));
         }
 
@@ -123,11 +113,17 @@ namespace tools {
             return true;
         }
 
+        /**
+         * @return size from the underlying container
+         */
         size_t size() const noexcept {
             MutexLockGuard lock(*_mutex);
             return _container.size();
         }
 
+        /**
+         * @return True if .size() is zero
+         */
         bool empty() const noexcept {
             //Call to size locks
             return size() == 0;
@@ -140,9 +136,9 @@ namespace tools {
          */
         void setSizeMax(size_t sizeMax) noexcept {
             MutexLockGuard lock(*_mutex);
-            size_t doNotify = _sizeMax && (sizeMax > _sizeMax) ? sizeMax - _sizeMax : 0;
-            _sizeMax = sizeMax;
-            for(; doNotify; --doNotify) _sizeMaxNotify->notify_one();
+            size_t doNotify = _maxSize && (sizeMax > _maxSize) ? sizeMax - _maxSize : 0;
+            _maxSize = sizeMax;
+            for(; doNotify; --doNotify) _maxSizeNotify->notify_one();
         }
 
         /**
@@ -171,12 +167,14 @@ namespace tools {
          */
         template<typename U>
         void copy(U* u) {
-            for (auto&& itr: u)
+            MutexLockGuard lock(*_mutex);
+            for (auto&& itr: *u)
                 _container.emplace_back(itr);
         }
 
-        /*
+        /**
          * Sorts using compare.
+         * @param compare the comparison function to sort with
          */
         template<typename Cmp = std::less<_Tp>>
         void sort(Cmp compare) {
@@ -184,7 +182,7 @@ namespace tools {
             std::sort(_container.begin(), _container.end(), compare);
         }
 
-        /*
+        /**
          * Returns the underlying container.
          * NOT THREAD SAFE
          */
@@ -198,8 +196,8 @@ namespace tools {
 
         ContainerType _container;
         mutable std::unique_ptr<Mutex> _mutex;
-        mutable std::unique_ptr<ConditionVariable> _sizeMaxNotify;
-        size_t _sizeMax{};
+        mutable std::unique_ptr<ConditionVariable> _maxSizeNotify;
+        size_t _maxSize{};
     };
 
     template<typename Value, template<typename, typename > class Container = std::deque> using ConcurrentQueue = BasicConcurrentQueue<Value, Container>;
