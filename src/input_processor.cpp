@@ -297,7 +297,10 @@ namespace loader {
                 }
             }
             //TODO: continue on error: convert to log message if continue
-            else throw std::logic_error("No shard key in doc");
+            else {
+                std::cerr << "No shard key in final doc for insert: " << doc << std::endl;
+                exit(EXIT_FAILURE);
+            }
         }
         //If hashing is required, do it
         if (_owner->settings().hashed) _docShardKey =

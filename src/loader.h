@@ -97,7 +97,7 @@ namespace loader {
             bool add_id;
             bool indexHas_id;
             size_t indexPos_id;
-            bool hashed;
+            bool hashed{};
             size_t chunksPerShard;
             bool shardKeyUnique;
             std::string shardKeyJson;

@@ -211,8 +211,12 @@ namespace loader {
                 int totalChunks = _settings.chunksPerShard * _mCluster.shards().size();
                 if (!_mCluster.shardCollection(_settings.output.ns(), _settings.shardKeysBson,
                                                _settings.shardKeyUnique, totalChunks, &info)) {
-                    std::cerr << "Sharding collection failed: " << info << "\nExiting" << std::endl;
-                    exit(EXIT_FAILURE);
+                    //The collection already being sharded is only an error if it was supposed to be dropped
+                    std::string strerror = info.getStringField("errmsg");
+                    if ((strerror != "already sharded") || _settings.dropDb || _settings.dropColl) {
+                        std::cerr << "Sharding collection failed: " << strerror << "\nExiting" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
                 }
                 _mCluster.waitForChunksPerShard(_settings.output.ns(),_settings.chunksPerShard);
             }
@@ -220,8 +224,12 @@ namespace loader {
                 //Don't do presplits for non-hashed here, no idea what the data is yet
                 if (!_mCluster.shardCollection(_settings.output.ns(), _settings.shardKeysBson,
                                                _settings.shardKeyUnique,  &info)) {
-                    std::cerr << "Sharding collection failed: " << info << "\nExiting" << std::endl;
-                    exit(EXIT_FAILURE);
+                    //The collection already being sharded is only an error if it was supposed to be dropped
+                    std::string strerror = info.getStringField("errmsg");
+                    if ((strerror != "already sharded") || _settings.dropDb || _settings.dropColl) {
+                        std::cerr << "Sharding collection failed: " << info << "\nExiting" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
                 }
             }
         }
@@ -281,6 +289,7 @@ namespace loader {
         _wf = _chunkDispatch->getWaterFall();
         //Wait for all threads to finish processing segments
         inputProcessor->waitEnd();
+        _inputAggregator->clean();
         timerRead.stop();
 
         std::cout << "Entering finalize phase" << std::endl;

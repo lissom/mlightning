@@ -63,7 +63,7 @@ namespace loader {
         namespace po = boost::program_options;
         po::options_description generic("Generic");
         po::options_description cmdline("Command Line");
-        const std::string supportedLoadStrategies = "BSON doc of queuing *per shard* to use: '{\"direct\": 98, "
+        const std::string supportedLoadStrategies = "BSON format doc of queuing *per shard* to use: '{\"direct\": 98, "
                 "\"ram\": 2}'"
                 "\nNote that presplits for very large numbers can be lengthy(i.e. over 100)!  Total splits = sum of queues * number of shards"
                 "\nCurrently supported: "

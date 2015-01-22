@@ -9,8 +9,8 @@
 
 namespace loader {
 
-    const std::string MONGO_CLUSTER_INPUT = "mongo";
-    const std::string JSON_INPUT = "json";
-    const std::string BSON_INPUT = "bson";
+    const char MONGO_CLUSTER_INPUT[] = "mongo";
+    const char JSON_INPUT[] = "json";
+    const char BSON_INPUT[] = "bson";
 
 } /* namespace loader */

@@ -40,6 +40,17 @@ namespace mongo {
             throw std::logic_error("Invalid mongo connection string");
         return mongoConnStr;
     }
+
+    inline std::unique_ptr<DBClientBase> connectOrThrow(ConnectionString &connStr, double socketTimeout = 0) {
+        std::string error;
+
+        std::unique_ptr<DBClientBase> dbConn(connStr.connect(error, socketTimeout));
+        if (!error.empty()) {
+            std::cerr << "Unable to connect to " << connStr.toString() << ": " << error << std::endl;
+            throw std::logic_error("Unable to connect to mongodb");
+        }
+        return dbConn;
+    }
     /*
     std::ostream& operator<<(std::ostream& out, const std::vector<BSONObj>& bsonvec) {
         for (auto&& ist: bsonvec)
@@ -48,4 +59,3 @@ namespace mongo {
     }
     */
 }  //namespace mongo
-

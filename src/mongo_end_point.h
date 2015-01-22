@@ -219,7 +219,7 @@ namespace tools {
          * Holds end points to a cluster.
          * All endpoints should either be monogS or mongoD
          *
-         * MongoEndPointHolder will get the mongoS from the cluster connectoin string if direct
+         * MongoEndPointHolder will get the mongoS from the cluster connection string if direct
          * connections aren't specified.
          */
         //template<typename TOpQueue = tools::mtools::OpQueueNoLock>
@@ -242,19 +242,17 @@ namespace tools {
                 }
                 else {
                     auto servers = mCluster.connStr().getServers();
-                    auto clusterS = mCluster.mongos();
                     for (auto& mongoS : servers) {
                         std::string mongosConn = std::string("mongodb://").append(mongoS.toString());
-                        if (std::find(clusterS.begin(), clusterS.end(), mongosConn)
-                            == clusterS.end()) {
-                            throw std::logic_error("MongoEndPointHolder::ctor: Unable to find"
-                                    "mongoS in cluster");
-                        }
+                        //todo: error checking to make sure *ip addresses* in the connection string match mongoS in the cluster
                         _epm.emplace(std::make_pair(mongosConn, MongoEndPointPtr(new MongoEndPoint(
                                 settings, mongosConn))));
                     }
                 }
-                assert(_epm.size());
+                if (!_epm.size()) {
+                    std::cerr << "No end points were created\nExiting" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
                 //Must start at _emp.begin() or the case of size() == 1 will fail;
                 _cycleItr = _epm.begin();
                 if (settings.startImmediate) start();

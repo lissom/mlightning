@@ -12,9 +12,9 @@
 
 namespace loader {
 
-    extern const std::string MONGO_CLUSTER_INPUT;
-    extern const std::string JSON_INPUT;
-    extern const std::string BSON_INPUT;
+    extern const char MONGO_CLUSTER_INPUT[];
+    extern const char JSON_INPUT[];
+    extern const char BSON_INPUT[];
 
 } /* namespace loader */
 

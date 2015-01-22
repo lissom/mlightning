@@ -185,6 +185,11 @@ namespace loader {
                 return _settings;
             }
 
+            /**
+             * Clear the queues
+             */
+            void clean();
+
         private:
             using InputPlan = tools::Index<tools::mtools::MongoCluster::ChunkIndexKey, ChunkBatcherPointer, tools::BSONObjCmp>;
 
@@ -192,11 +197,6 @@ namespace loader {
              * Sets up a single name space
              */
             void init(const tools::mtools::MongoCluster::NameSpace& ns);
-
-            /**
-             * Clear the queues
-             */
-            void clean();
 
             const tools::mtools::MongoCluster& cluster() const {
                 return _mCluster;

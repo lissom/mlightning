@@ -28,6 +28,7 @@ namespace tools {
         {
             std::string error;
             _connStr = mongo::parseConnectionOrThrow(connStr);
+            _dbConn = mongo::connectOrThrow(_connStr);
             loadCluster();
         }
 
