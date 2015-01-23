@@ -182,7 +182,7 @@ namespace tools {
         }
 
         bool MongoCluster::balancerIsRunning() {
-            mongo::Cursor cursor = _dbConn->query("config.locks", BSON("state" << BSON("$gt" << 0)));
+            mongo::Cursor cursor = _dbConn->query("config.locks", BSON("_id" << "balancer" << "state" << BSON("$gt" << 0)));
             if (!cursor->more())
                 return false;
             return true;
@@ -246,19 +246,29 @@ namespace tools {
         }
 
         bool MongoCluster::shardCollection(const NameSpace &ns, const mongo::BSONObj &shardKey,
-                                           bool unique, mongo::BSONObj *info) {
-            mongo::BSONObj shardCmd = BSON("shardCollection" << ns
-                                       << "key" << shardKey);
-            return _dbConn->runCommand("admin", shardCmd, *info);
+                                                   bool unique, mongo::BSONObj *info) {
+            mongo::BSONObjBuilder bob;
+            bob.append("shardCollection", ns)
+                .append("key", shardKey);
+            if (unique)
+                bob.append("unique", true);
+            return _dbConn->runCommand("admin", bob.obj(), *info);
         }
 
         bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj &shardKey,
-                                           const bool unique, const int chunks,
-                                           mongo::BSONObj *info) {
-            mongo::BSONObj shardCmd = BSON("shardCollection" << ns
-                                       << "key" << shardKey
-                                       << "numInitialChunks" << chunks);
-            return _dbConn->runCommand("admin", shardCmd, *info);
+                                                   const bool unique, const int chunks,
+                                                   mongo::BSONObj *info) {
+            //ensure the key is a hashed shard key
+            std::string key = shardKey.toString();
+            auto pos = key.find(":");
+            assert(key.find("hashed", pos) != std::string::npos);
+            mongo::BSONObjBuilder bob;
+            bob.append("shardCollection", ns)
+                .append("key", shardKey)
+                .append("numInitialChunks", chunks);
+            if (unique)
+                bob.append("unique", true);
+            return _dbConn->runCommand("admin", bob.obj(), *info);
         }
 
         void MongoCluster::flushRouterConfigs() {
