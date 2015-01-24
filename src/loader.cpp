@@ -151,10 +151,6 @@ namespace loader {
                                                            cluster(),
                                                            _endPoints.get(),
                                                            _settings.output.ns()));
-        _inputAggregator.reset(new docbuilder::InputNameSpaceContainer(queueSettings(),
-                                             cluster(),
-                                             &(chunkDispatcher()),
-                                             _settings.output.ns()));
     }
 
     void Loader::setupLoad() {
@@ -289,7 +285,6 @@ namespace loader {
         _wf = _chunkDispatch->getWaterFall();
         //Wait for all threads to finish processing segments
         inputProcessor->waitEnd();
-        _inputAggregator->clean();
         timerRead.stop();
 
         std::cout << "Entering finalize phase" << std::endl;

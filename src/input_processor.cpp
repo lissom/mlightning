@@ -259,7 +259,10 @@ namespace loader {
             _add_id(_owner->settings().indexHas_id && _owner->settings().add_id),
             _keys(_owner->settings().shardKeysBson),
             _keyFieldsCount(_keys.nFields()),
-            _inputAggregator(_owner->inputAggregator())
+            _inputAggregator(_owner->queueSettings(),
+                    _owner->cluster(),
+                    &_owner->chunkDispatcher(),
+                    _owner->settings().output.ns())
     {}
 
     void DocumentProcessor::process() {

@@ -163,10 +163,6 @@ namespace loader {
             return *_chunkDispatch.get();
         }
 
-        docbuilder::InputNameSpaceContainer& inputAggregator() {
-            return * _inputAggregator.get();
-        }
-
         /**
          * Returns the settings.
          */
@@ -194,7 +190,6 @@ namespace loader {
         tools::mtools::MongoCluster _mCluster;
         std::unique_ptr<EndPointHolder> _endPoints;
         std::unique_ptr<dispatch::ChunkDispatcher> _chunkDispatch;
-        std::unique_ptr<docbuilder::InputNameSpaceContainer> _inputAggregator;
 
         size_t _ramMax;
         size_t _threadsMax;
