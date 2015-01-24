@@ -223,7 +223,7 @@ namespace loader {
             }
 
             void push(DocumentBuilderInterface* stage) {
-                _bsonHolder.push_back(stage->getFinalDoc());
+                _bsonHolder.push_back(stage->getFinalDoc().getOwned());
                 if (_bsonHolder.size() >= queueSize()) {
                     postTo()->push(&_bsonHolder);
                     _bsonHolder.reserve(queueSize());

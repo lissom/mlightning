@@ -187,7 +187,7 @@ namespace loader {
 
         Loader* owner() { return _owner; }
 
-        mongo::BSONObj doc;
+        Bson _doc;
 
     private:
         Loader* const _owner;
@@ -203,7 +203,7 @@ namespace loader {
 
     class FileSegmentProcessor : public DocumentProcessor {
     public:
-        FileSegmentProcessor(Loader* owner, const std::string& fileType);
+        FileSegmentProcessor(Loader* owner);
 
         /**
          * Takes a segment and it's logical location (i.e. the mapping to something real)
@@ -219,6 +219,39 @@ namespace loader {
         FileInputInterfacePtr _input;
 
     };
+
+    class OldFileSegmentProcessor : public docbuilder::DocumentBuilderInterface {
+        public:
+            OldFileSegmentProcessor(Loader* owner);
+
+            /**
+             * Takes a segment and it's logical location (i.e. the mapping to something real)
+             * It then puts all the documents into the right queues
+             */
+            void processSegmentToBatch(tools::LocSegment segment, tools::LogicalLoc logicalLoc);
+
+            virtual Bson getFinalDoc();
+            virtual Bson getIndex();
+            virtual Bson getAdd();
+            virtual tools::DocLoc getLoc();
+
+        private:
+            Loader *_owner;
+            const std::string _ns;
+            const bool _add_id;
+            const mongo::BSONObj _keys;
+            int _keyFieldsCount;
+            docbuilder::InputNameSpaceContainer _inputAggregator;
+            tools::LogicalLoc _docLogicalLoc;
+            tools::DocLoc _docLoc;
+            std::string _docJson;
+            Bson _doc;
+            mongo::BSONObjBuilder *_extra = NULL;
+            mongo::BSONObj _docShardKey;
+            bool _added_id{};
+            FileInputInterfacePtr _input;
+
+        };
 
 }  //namespace loader
 
