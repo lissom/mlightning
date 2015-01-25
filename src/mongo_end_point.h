@@ -255,7 +255,6 @@ namespace tools {
                 }
                 //Must start at _emp.begin() or the case of size() == 1 will fail;
                 _cycleItr = _epm.begin();
-                if (settings.startImmediate) start();
             }
 
             /**

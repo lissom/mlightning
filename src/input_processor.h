@@ -93,10 +93,10 @@ namespace loader {
 
         Loader* const _owner;
         //Number of chunks that have not had their results queued
-        std::atomic<size_t> chunksRemaining{};
+        std::atomic<size_t> _chunksRemaining{};
         //Also atmoic just in case we multithread creation, costs <<<
-        std::atomic<size_t> chunksTotal{};
-        std::atomic<size_t> chunksProcessed{};
+        std::atomic<size_t> _chunksTotal{};
+        std::atomic<size_t> _chunksProcessed{};
         //Target input cluster
         tools::mtools::MongoCluster _mCluster;
         //Ends points to target input cluster
@@ -154,7 +154,7 @@ namespace loader {
         std::atomic<std::size_t> _processedSegments{};
         std::unique_ptr<tools::ThreadPool> _tpBatcher;
 
-        Loader * const _owner;
+        Loader* const _owner;
         size_t _threads;
         const std::string _inputType;
         const std::string _loadDir;

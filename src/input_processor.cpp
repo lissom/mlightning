@@ -39,9 +39,9 @@ namespace loader {
         _tpBatcher(new tools::ThreadPool(_owner->settings().threads)) {}
 
     void MongoInputProcessor::run() {
-        std::cout << "Stopping balancer for " << _mCluster.connStr().toString();
+        std::cout << "Stopping balancer for " << _mCluster.connStr().toString() << std::endl;
         _mCluster.stopBalancerWait();
-        auto _inputShardChunks = _mCluster.getShardChunks();
+        _inputShardChunks = _mCluster.getShardChunks(_ns);
         if (_inputShardChunks.empty()) {
             std::cerr << "There were no chunks found\nExiting" << std::endl;
             //Assuming there were supposed to be chunks this is an error
@@ -67,7 +67,7 @@ namespace loader {
         for (;;) {
             //Check if there is work to do, if not and there is future work, sleep 1s
             if (!_inputQueue.pop(data)) {
-                if (chunksRemaining == 0)
+                if (_chunksRemaining == 0)
                     break;
                 else
                     sleep(1);
@@ -82,7 +82,7 @@ namespace loader {
 
     void MongoInputProcessor::setupProcessLoops() {
         //If chunksRemaining isn't > 0 the processing can terminate prematurely
-        assert(chunksRemaining > 0);
+        assert(_chunksRemaining > 0);
         for (size_t i = 0; i < _tpBatcher->size(); i++)
             _tpBatcher->queue([this]() {this->threadProcessLoop();});
         _tpBatcher->endWaitInitiate();
@@ -109,8 +109,8 @@ namespace loader {
                     //Ensure the field names are the same
                     assert(strcmp(key.fieldName(), max.fieldName()) == 0);
                     assert(strcmp(key.fieldName(), min.fieldName()) == 0);
-                    query.append(key.fieldName(), BSON(mongo::LT << max));
-                    query.append(key.fieldName(), BSON(mongo::GTE << min));
+                    query.append(key.fieldName(), BSON("$lt" << max));
+                    query.append(key.fieldName(), BSON("$gte"<< min));
                 }
                 endPoint->push(tools::mtools::OpQueueQueryBulk::make(
                         [this](tools::mtools::DbOp* op, tools::mtools::OpReturnCode status) {
@@ -118,21 +118,22 @@ namespace loader {
                                                 },
                     _ns,
                     query.obj()));
-                ++chunksRemaining;
-                ++chunksTotal;
+                ++_chunksRemaining;
+                ++_chunksTotal;
             }
         }
     }
 
     void MongoInputProcessor::inputQueryCallBack(tools::mtools::DbOp* dbOp__,
             tools::mtools::OpReturnCode status__) {
-        auto dbOp = static_cast<tools::mtools::OpQueueQueryBulk*>(dbOp__);
+        auto dbOp = dynamic_cast<tools::mtools::OpQueueQueryBulk*>(dbOp__);
         _inputQueue.push(std::move(dbOp->_data));
     }
 
     void MongoInputProcessor::waitEnd() {
+        _endPoints.gracefulShutdownJoin();
         _tpBatcher->joinAll();
-        if (chunksProcessed == chunksTotal) {
+        if (_chunksProcessed == _chunksTotal) {
             std::cerr << "Not all chunks were processed\nExiting" << std::endl;
             exit(EXIT_FAILURE);
         }

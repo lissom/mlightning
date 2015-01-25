@@ -141,7 +141,7 @@ namespace tools {
              */
             ShardMap getShardList() const;
 
-            ShardChunks getShardChunks();
+            ShardChunks getShardChunks(const NameSpace &ns);
 
             /**
              * @return access to shards and their connection strings

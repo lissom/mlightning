@@ -70,9 +70,9 @@ namespace tools {
             if (idx) idx->finalize();
         }
 
-        MongoCluster::ShardChunks MongoCluster::getShardChunks() {
+        MongoCluster::ShardChunks MongoCluster::getShardChunks(const NameSpace &ns) {
             ShardChunks shardChunks;
-            mongo::Cursor cur = _dbConn->query("config.chunks", mongo::Query());
+            mongo::Cursor cur = _dbConn->query("config.chunks", BSON("ns" << ns));
             while (cur->more()) {
                 mongo::BSONObj obj = cur->next();
                 shardChunks[obj.getStringField("shard")].push_back(
