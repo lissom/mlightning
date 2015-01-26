@@ -49,6 +49,7 @@ namespace loader {
         }
         displayChunkStats();
         dispatchChunksForRead();
+        std::cout << _chunksRemaining << std::endl;
         setupProcessLoops();
         _tpBatcher->endWait();
     }
@@ -71,7 +72,9 @@ namespace loader {
                     break;
                 else
                     sleep(1);
+                    continue;
             }
+            --_chunksRemaining;
             for(auto&& itr: data) {
                 dp.doc = itr;
                 dp.process();
@@ -83,9 +86,9 @@ namespace loader {
     void MongoInputProcessor::setupProcessLoops() {
         //If chunksRemaining isn't > 0 the processing can terminate prematurely
         assert(_chunksRemaining > 0);
-        for (size_t i = 0; i < _tpBatcher->size(); i++)
+        assert(_tpBatcher->threadsSize());
+        for (size_t i = 0; i < _tpBatcher->threadsSize(); i++)
             _tpBatcher->queue([this]() {this->threadProcessLoop();});
-        _tpBatcher->endWaitInitiate();
     }
 
     void MongoInputProcessor::dispatchChunksForRead() {
@@ -127,14 +130,18 @@ namespace loader {
     void MongoInputProcessor::inputQueryCallBack(tools::mtools::DbOp* dbOp__,
             tools::mtools::OpReturnCode status__) {
         auto dbOp = dynamic_cast<tools::mtools::OpQueueQueryBulk*>(dbOp__);
+        ++_chunksInserted;
         _inputQueue.push(std::move(dbOp->_data));
     }
 
     void MongoInputProcessor::waitEnd() {
         _endPoints.gracefulShutdownJoin();
+        _tpBatcher->endWaitInitiate();
         _tpBatcher->joinAll();
-        if (_chunksProcessed == _chunksTotal) {
-            std::cerr << "Not all chunks were processed\nExiting" << std::endl;
+        size_t chunksProcessed = _chunksProcessed;
+        if (chunksProcessed != _chunksTotal) {
+            std::cerr << "Not all chunks were processed (processed = " << chunksProcessed
+                    << ")\nExiting" << std::endl;
             exit(EXIT_FAILURE);
         }
     }

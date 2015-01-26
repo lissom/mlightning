@@ -97,6 +97,7 @@ namespace loader {
         //Also atmoic just in case we multithread creation, costs <<<
         std::atomic<size_t> _chunksTotal{};
         std::atomic<size_t> _chunksProcessed{};
+        std::atomic<size_t> _chunksInserted{};
         //Target input cluster
         tools::mtools::MongoCluster _mCluster;
         //Ends points to target input cluster

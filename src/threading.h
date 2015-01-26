@@ -67,7 +67,7 @@ namespace tools {
         ~ThreadPool() {
             //If the pool ended with endwait all work should be complete
             //This can be broken if something is still inserting, this will just "warn" of that
-            if (_endWait && !_terminate) assert(!size());
+            if (_endWait && !_terminate) assert(!queueSize());
             _terminate = true;
             _workNotify.notify_all();
             joinAll();
@@ -122,12 +122,20 @@ namespace tools {
             _workNotify.notify_all();
         }
 
+
         /**
          * @return the size of the workQueue.
          */
-        size_t size() const {
+        size_t queueSize() const {
             MutexLockGuard lock(_workMutex);
             return _workQueue.size();
+        }
+
+        /**
+         * @return the max number of threads available
+         */
+        size_t threadsSize() const {
+            return _threads.size();
         }
 
     private:

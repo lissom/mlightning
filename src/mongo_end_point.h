@@ -78,7 +78,7 @@ namespace tools {
              * @return are threads active
              */
             bool isRunning() {
-                return _threadPool.size();
+                return _threadPool.queueSize();
             }
 
             /**
