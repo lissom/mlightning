@@ -42,18 +42,17 @@ namespace loader {
             exit(EXIT_FAILURE);
         }
 
-        if (inputType == MONGO_CLUSTER_INPUT) {
+        //If the input type is a cluster there is no directory given, validate cluster input
+        if (inputType == MONGO_CLUSTER_INPUT || loadPath.empty()) {
             try {
                 input.validate();
+                if (loadPath.empty())
+                    inputType = MONGO_CLUSTER_INPUT;
             }
             catch (std::exception &e) {
+                if (loadPath.empty())
+                    std::cerr << "No load path\n";
                 std::cerr << "Unable to validate input cluster: " << e.what() << std::endl;
-                exit(EXIT_FAILURE);
-            }
-        }
-        else {
-            if (loadPath.empty()) {
-                std::cerr << "No load path" << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
