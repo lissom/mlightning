@@ -267,9 +267,9 @@ namespace loader {
 
         if (!_mCluster.disableBalancing(_settings.output.ns()))
             exit(EXIT_FAILURE);
-        std::cout << "WARNING: Balancing has been disabled on " << _settings.output.ns() <<
-                ".  It will only be enabled on a successful load, otherwise it must be done"
-                "manually." << std::endl;
+        std::cout << "WARNING: Balancing has been disabled on \"" << _settings.output.ns() <<
+                "\".  It will only be enabled on a successful load, otherwise it must be done"
+                " manually." << std::endl;
 
 
         std::unique_ptr<InputProcessorInterface> inputProcessor(
