@@ -86,9 +86,7 @@ namespace loader {
     void MongoInputProcessor::setupProcessLoops() {
         //If chunksRemaining isn't > 0 the processing can terminate prematurely
         assert(_chunksRemaining > 0);
-        assert(_tpBatcher->threadsSize());
-        for (size_t i = 0; i < _tpBatcher->threadsSize(); i++)
-            _tpBatcher->queue([this]() {this->threadProcessLoop();});
+        _tpBatcher->threadForEach([this]() {this->threadProcessLoop();});
     }
 
     void MongoInputProcessor::dispatchChunksForRead() {
@@ -130,7 +128,6 @@ namespace loader {
     void MongoInputProcessor::inputQueryCallBack(tools::mtools::DbOp* dbOp__,
             tools::mtools::OpReturnCode status__) {
         auto dbOp = dynamic_cast<tools::mtools::OpQueueQueryBulk*>(dbOp__);
-        ++_chunksInserted;
         _inputQueue.push(std::move(dbOp->_data));
     }
 
@@ -232,8 +229,7 @@ namespace loader {
         size_t inputThreads = _threads > _locSegmentQueue.size() ? _locSegmentQueue.size()
                 : _threads;
         _tpBatcher.reset(new tools::ThreadPool(inputThreads));
-        for (size_t i = 0; i < inputThreads; i++)
-            _tpBatcher->queue([this]() {this->threadProcessLoop();});
+        _tpBatcher->threadForEach([this]() {this->threadProcessLoop();});
         _tpBatcher->endWaitInitiate();
 
     }

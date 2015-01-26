@@ -84,6 +84,16 @@ namespace tools {
         }
 
         /**
+         * Queue this function once for each thread in the queue
+         */
+        void threadForEach(ThreadFunction func) {
+            MutexLockGuard lock(_workMutex);
+            for (size_t i = 0; i < _threads.size(); ++i)
+                _workQueue.push_back(func);
+            _workNotify.notify_all();
+        }
+
+        /**
          * Joins all threads.  Does NOT stop them.
          */
         void joinAll() {
@@ -121,7 +131,6 @@ namespace tools {
             _endWait = true;
             _workNotify.notify_all();
         }
-
 
         /**
          * @return the size of the workQueue.
