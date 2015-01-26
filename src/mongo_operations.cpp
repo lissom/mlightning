@@ -101,9 +101,9 @@ namespace tools {
             //Exhaust option is added because we are going to get all results immediately.
             bool noErrors = true;
             auto c = conn->query(_ns, _query, 0, 0, _fieldsToReturn,
-                    _queryOptions | mongo::QueryOption_Exhaust);
+                    _queryOptions);//_queryOptions | mongo::QueryOption_Exhaust); for some reason exhaust generates errors, need to investigate, not sure it's fixable (driver seems to not use exhaust either)
             while (c->more()) {
-                mongo::BSONObj obj;
+                mongo::BSONObj obj = c->next();
                 if( strcmp(obj.firstElementFieldName(), "$err") == 0 ) {
                     std::string s = "error reading document: " + obj.toString();
                     std::cerr << s << std::endl;

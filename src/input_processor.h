@@ -92,11 +92,8 @@ namespace loader {
         void inputQueryCallBack(tools::mtools::DbOp*, tools::mtools::OpReturnCode);
 
         Loader* const _owner;
-        //Number of chunks that have not had their results queued
+        //Number of chunks that have not had their results queued, must be set before processing starts
         std::atomic<size_t> _chunksRemaining{};
-        //Also atmoic just in case we multithread creation, costs <<<
-        std::atomic<size_t> _chunksTotal{};
-        std::atomic<size_t> _chunksProcessed{};
         //Target input cluster
         tools::mtools::MongoCluster _mCluster;
         //Ends points to target input cluster

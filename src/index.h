@@ -28,10 +28,7 @@ namespace tools {
      */
     template<typename Cmp, typename Key>
     struct IndexPairCompare {
-        IndexPairCompare(Cmp cmp) :
-                compare(std::move(cmp))
-        {
-        }
+        IndexPairCompare(Cmp cmp) : compare(std::move(cmp)) { }
 
         template<typename IndexDataType>
         bool operator()(const IndexDataType& lhs, const IndexDataType& rhs) const {

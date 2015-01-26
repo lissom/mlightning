@@ -47,9 +47,8 @@ namespace loader {
             //Assuming there were supposed to be chunks this is an error
             exit(EXIT_FAILURE);
         }
-        displayChunkStats();
+        //displayChunkStats();
         dispatchChunksForRead();
-        std::cout << _chunksRemaining << std::endl;
         setupProcessLoops();
         _tpBatcher->endWait();
     }
@@ -69,15 +68,15 @@ namespace loader {
             //Check if there is work to do, if not and there is future work, sleep 1s
             if (!_inputQueue.pop(data)) {
                 if (_chunksRemaining == 0)
-                    break;
-                else
-                    sleep(1);
-                    continue;
+                  break;
+                sleep(1);
+                continue;
             }
             --_chunksRemaining;
             for(auto&& itr: data) {
                 dp.doc = itr;
                 dp.process();
+                dp.push();
             }
             data.clear();
         }
@@ -96,7 +95,8 @@ namespace loader {
         for (auto&& shardChunks: _inputShardChunks) {
             auto endPoint = _endPoints.at(shardChunks.first);
             for (auto&& chunks: shardChunks.second) {
-                mongo::BSONObjBuilder query;
+                mongo::BSONObjBuilder minKey;
+                mongo::BSONObjBuilder maxKey;
                 mongo::BSONObjIterator keyItr(_shardKey);
                 mongo::BSONObjIterator maxItr(chunks.max);
                 mongo::BSONObjIterator minItr(chunks.min);
@@ -110,17 +110,19 @@ namespace loader {
                     //Ensure the field names are the same
                     assert(strcmp(key.fieldName(), max.fieldName()) == 0);
                     assert(strcmp(key.fieldName(), min.fieldName()) == 0);
-                    query.append(key.fieldName(), BSON("$lt" << max));
-                    query.append(key.fieldName(), BSON("$gte"<< min));
+                    //min shard key, inclusive
+                    minKey.append(min);
+                    //max shard key, exclusive
+                    maxKey.append(max);
+
                 }
                 endPoint->push(tools::mtools::OpQueueQueryBulk::make(
                         [this](tools::mtools::DbOp* op, tools::mtools::OpReturnCode status) {
                                                     this->inputQueryCallBack(op, status);
                                                 },
                     _ns,
-                    query.obj()));
+                    mongo::Query().minKey(minKey.obj()).maxKey(maxKey.obj())));
                 ++_chunksRemaining;
-                ++_chunksTotal;
             }
         }
     }
@@ -128,6 +130,9 @@ namespace loader {
     void MongoInputProcessor::inputQueryCallBack(tools::mtools::DbOp* dbOp__,
             tools::mtools::OpReturnCode status__) {
         auto dbOp = dynamic_cast<tools::mtools::OpQueueQueryBulk*>(dbOp__);
+        //todo: handle fails gracefully
+        //status should currently terminate in the results object
+        assert(status__);
         _inputQueue.push(std::move(dbOp->_data));
     }
 
@@ -135,9 +140,8 @@ namespace loader {
         _endPoints.gracefulShutdownJoin();
         _tpBatcher->endWaitInitiate();
         _tpBatcher->joinAll();
-        size_t chunksProcessed = _chunksProcessed;
-        if (chunksProcessed != _chunksTotal) {
-            std::cerr << "Not all chunks were processed (processed = " << chunksProcessed
+        if (_chunksRemaining) {
+            std::cerr << "Not all chunks were processed (remaining = " << _chunksRemaining
                     << ")\nExiting" << std::endl;
             exit(EXIT_FAILURE);
         }
