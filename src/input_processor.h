@@ -54,6 +54,7 @@ namespace loader {
     class MongoInputProcessor : public InputProcessorInterface {
     public:
         MongoInputProcessor(Loader* const owner);
+        ~MongoInputProcessor();
         /**
          * Pulls the data from the target intput database and puts it into the queues for processing
          */

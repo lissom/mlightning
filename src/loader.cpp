@@ -265,6 +265,12 @@ namespace loader {
                   << "\nStarting read of data"
                   << std::endl;
 
+        if (!_mCluster.disableBalancing(_settings.output.ns()))
+            exit(EXIT_FAILURE);
+        std::cout << "WARNING: Balancing has been disabled on " << _settings.output.ns() <<
+                ".  It will only be enabled on a successful load, otherwise it must be done"
+                "manually." << std::endl;
+
 
         std::unique_ptr<InputProcessorInterface> inputProcessor(
                 InputProcessorFactory::createObject(_settings.inputType, this));
@@ -357,6 +363,7 @@ namespace loader {
             catch (...) {
                 std::cerr << "Unknown exception writing stats. " << std::endl;
             }
+            _mCluster.enableBalancing(_settings.output.ns());
         }
 
     }

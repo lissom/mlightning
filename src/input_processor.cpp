@@ -35,7 +35,14 @@ namespace loader {
         _mCluster(_owner->settings().input.uri),
         _endPoints(_owner->settings().input.endPoints, _mCluster),
         _ns(_owner->settings().input.ns()),
-        _tpBatcher(new tools::ThreadPool(_owner->settings().threads)) {}
+        _tpBatcher(new tools::ThreadPool(_owner->settings().threads)) {
+        if (!_mCluster.disableBalancing(_owner->settings().input.ns()))
+            exit(EXIT_FAILURE);
+    }
+
+    MongoInputProcessor::~MongoInputProcessor() {
+        (void)_mCluster.enableBalancing(_owner->settings().input.ns());
+    }
 
     void MongoInputProcessor::run() {
         std::cout << "Stopping balancer for " << _mCluster.connStr().toString() << std::endl;

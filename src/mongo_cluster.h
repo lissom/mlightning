@@ -233,11 +233,24 @@ namespace tools {
              * Tell mongoS to stop the balancer
              */
             void stopBalancer();
+
             /**
              * Stops the balancer and then checks to see if it is running
              * @return true if running, false if not
              */
             bool stopBalancerWait(std::chrono::seconds wait = std::chrono::seconds(0));
+
+            /**
+             * Disable balancing for a specific collection
+             * @return return true if success
+             */
+            bool disableBalancing(const NameSpace &ns);
+
+            /**
+             * Enable balancer for a specific collection
+             * @return return true if success
+             */
+            bool enableBalancing(const NameSpace &ns);
 
             /**
              * Wait for all shards in a namespace to have X or more chunks

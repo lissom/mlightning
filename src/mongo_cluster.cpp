@@ -214,6 +214,26 @@ namespace tools {
 
         }
 
+        bool MongoCluster::disableBalancing(const NameSpace &ns) {
+            _dbConn->update("config.collections", BSON("_id" << ns), BSON("noBalance" << true));
+            std::string lastError = _dbConn->getLastError();
+            if (lastError.empty())
+                return true;
+            std::cerr << "Failed to disable balancing for name space \"" << ns << "\". Error: "
+                    << lastError << std::endl;
+            return false;
+        }
+
+        bool MongoCluster::enableBalancing(const NameSpace &ns) {
+            _dbConn->update("config.collections", BSON("_id" << ns), BSON("noBalance" << false));
+            std::string lastError = _dbConn->getLastError();
+            if (lastError.empty())
+                return true;
+            std::cerr << "Failed to enable balancing for name space \"" << ns << "\". Error: "
+                    << lastError << std::endl;
+            return false;
+        }
+
         void MongoCluster::waitForChunksPerShard(std::string ns, int chunksPerShard) {
             mongo::BSONObj aggOpts = mongo::BSONObjBuilder().append("allowDiskUse", true)
                         .append("cursor", BSON("batchSize" << 10000)).obj();
