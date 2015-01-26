@@ -241,6 +241,11 @@ namespace tools {
             bool stopBalancerWait(std::chrono::seconds wait = std::chrono::seconds(0));
 
             /**
+             * Is the balancer enabled for this specific collection
+             */
+            bool isBalancingEnabled(const NameSpace &ns);
+
+            /**
              * Disable balancing for a specific collection
              * @return return true if success
              */

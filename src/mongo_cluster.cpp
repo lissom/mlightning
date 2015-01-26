@@ -214,6 +214,17 @@ namespace tools {
 
         }
 
+        bool MongoCluster::isBalancingEnabled(const NameSpace &ns) {
+            mongo::BSONObj obj = _dbConn->findOne("config.collections", BSON("_id" << ns << "noBalance" << true));
+            //If there are no results, then it's no disabled
+            if (obj.isEmpty())
+                return false;
+            if (strcmp(obj.firstElementFieldName(), "$err") == 0 ) {
+                throw std::logic_error("Unable to get query for balancer state in bool MongoCluster::isBalancingEnabled(const NameSpace &ns)");
+            }
+            return true;
+        }
+
         bool MongoCluster::disableBalancing(const NameSpace &ns) {
             _dbConn->update("config.collections", BSON("_id" << ns), BSON("noBalance" << true));
             std::string lastError = _dbConn->getLastError();
