@@ -35,7 +35,6 @@ namespace loader {
         _mCluster(_owner->settings().input.uri),
         _endPoints(_owner->settings().input.endPoints, _mCluster),
         _ns(_owner->settings().input.ns()),
-        _shardKey(_mCluster.getShardKeyAsBson(_ns)),
         _tpBatcher(new tools::ThreadPool(_owner->settings().threads)) {}
 
     void MongoInputProcessor::run() {
@@ -91,37 +90,15 @@ namespace loader {
     void MongoInputProcessor::dispatchChunksForRead() {
         //todo: should change this to iterate by shard (i.e. while (shardChunks.size() .. for(.. if !size remove))
         //todo: may need to run in a different context for extremely large chunk counts so things kick off immediately
-        auto shardKeySize = _shardKey.nFields();
         for (auto&& shardChunks: _inputShardChunks) {
             auto endPoint = _endPoints.at(shardChunks.first);
             for (auto&& chunks: shardChunks.second) {
-                mongo::BSONObjBuilder minKey;
-                mongo::BSONObjBuilder maxKey;
-                mongo::BSONObjIterator keyItr(_shardKey);
-                mongo::BSONObjIterator maxItr(chunks.max);
-                mongo::BSONObjIterator minItr(chunks.min);
-                for (int count = 0; count < shardKeySize; ++count) {
-                    //Ensure that mongo has valid shard key forms
-                    assert(maxItr.more());
-                    assert(minItr.more());
-                    auto key = keyItr.next();
-                    auto max = maxItr.next();
-                    auto min = minItr.next();
-                    //Ensure the field names are the same
-                    assert(strcmp(key.fieldName(), max.fieldName()) == 0);
-                    assert(strcmp(key.fieldName(), min.fieldName()) == 0);
-                    //min shard key, inclusive
-                    minKey.append(min);
-                    //max shard key, exclusive
-                    maxKey.append(max);
-
-                }
                 endPoint->push(tools::mtools::OpQueueQueryBulk::make(
                         [this](tools::mtools::DbOp* op, tools::mtools::OpReturnCode status) {
                                                     this->inputQueryCallBack(op, status);
                                                 },
                     _ns,
-                    mongo::Query().minKey(minKey.obj()).maxKey(maxKey.obj())));
+                    mongo::Query().minKey(chunks.min).maxKey(chunks.max)));
                 ++_chunksRemaining;
             }
         }

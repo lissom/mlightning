@@ -100,8 +100,6 @@ namespace loader {
         EndPointHolder _endPoints;
         //Input namespace
         const std::string _ns;
-        //Input shard key
-        const mongo::BSONObj _shardKey;
         //Input chunks by shard, is drained eventually
         tools::mtools::MongoCluster::ShardChunks _inputShardChunks;
         //Query results are stored here while waiting for a thread to process them
