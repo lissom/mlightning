@@ -23,6 +23,8 @@
 
 namespace loader {
 
+    const size_t MONGOINPUT_DEFAULT_MAX_SIZE = 100;
+
     const bool MongoInputProcessor::_registerFactory = InputProcessorFactory::registerCreator(
             MONGO_CLUSTER_INPUT, &MongoInputProcessor::create);
     const bool FileInputProcessor::_registerFactoryJson = InputProcessorFactory::registerCreator(
@@ -38,6 +40,7 @@ namespace loader {
         _tpBatcher(new tools::ThreadPool(_owner->settings().threads)) {
         if (!_mCluster.disableBalancing(_owner->settings().input.ns()))
             exit(EXIT_FAILURE);
+        _inputQueue.setSizeMax(MONGOINPUT_DEFAULT_MAX_SIZE);
     }
 
     MongoInputProcessor::~MongoInputProcessor() {
@@ -117,7 +120,7 @@ namespace loader {
         //todo: handle fails gracefully
         //status should currently terminate in the results object
         assert(status__);
-        _inputQueue.push(std::move(dbOp->_data));
+        _inputQueue.pushCheckMaxSize(std::move(dbOp->_data));
     }
 
     void MongoInputProcessor::waitEnd() {
@@ -141,13 +144,6 @@ namespace loader {
     { }
 
     void FileInputProcessor::run() {
-        //Ensure the directory exists
-        if (!is_directory(boost::filesystem::path(_loadDir))) {
-            std::cerr << "loadPath is required to be a directory. loadPath: " << _loadDir
-                      << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
         /*
          * Initial setup.  Getting all the files that are going to put into the mognoDs.
          * If we files that are larger than bytes per thread, break them down and into smaller

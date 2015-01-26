@@ -84,10 +84,10 @@ namespace tools {
          * Push to the queue and check to see if the max size is reached, wait for a pull if not
          * and then push.
          */
-        void pushCheckMax(ValueType value) {
+        void pushCheckMaxSize(ValueType value) {
             MutexUniqueLock lock(*_mutex);
             _maxSizeNotify->wait(lock, [this]()
-            {   return this->_maxSize && (this->_container.size() >
+            {   return !this->_maxSize || (this->_container.size() <
                         this->_maxSize);});
             _container.push_back(std::move(value));
         }

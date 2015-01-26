@@ -15,6 +15,7 @@
 
 #include "loader.h"
 #include <algorithm>
+#include <boost/filesystem.hpp>
 #include <exception>
 #include <iostream>
 #include <tuple>
@@ -53,6 +54,14 @@ namespace loader {
                 if (loadPath.empty())
                     std::cerr << "No load path\n";
                 std::cerr << "Unable to validate input cluster: " << e.what() << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+        else {
+            //Ensure the directory exists
+            if (!is_directory(boost::filesystem::path(loadPath))) {
+                std::cerr << "loadPath is required to be a directory. loadPath: " << loadPath
+                          << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
