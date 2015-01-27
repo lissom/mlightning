@@ -189,6 +189,10 @@ namespace tools {
             return _container;
         }
 
+        const ContainerType& unSafeAccess() const {
+            return _container;
+        }
+
     private:
         ContainerType _container;
         mutable Mutex _mutex;
