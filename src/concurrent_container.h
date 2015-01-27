@@ -33,15 +33,14 @@ namespace tools {
         using ValueType = _Tp;
         using ContainerType = _Tc<_Tp, std::allocator<_Tp>>;
 
-        BasicConcurrentQueue() :
-                _mutex(new Mutex), _maxSizeNotify(new ConditionVariable) { }
+        BasicConcurrentQueue() { }
 
         /**
          * Swaps the container with the one given.
          * @from the container to swap from.  from must be safe for writes.
          */
         void swap(ContainerType& from) noexcept {
-            MutexLockGuard lock(*_mutex);
+            MutexLockGuard lock(_mutex);
             _container.swap(from);
         }
 
@@ -54,11 +53,11 @@ namespace tools {
          * @return Returns true if there is a value to return
          */
         bool pop(ValueType& ret) noexcept {
-            MutexLockGuard lock(*_mutex);
+            MutexLockGuard lock(_mutex);
             if (_container.empty()) return false;
             ret = (std::move(_container.front()));
             _container.pop_front();
-            _maxSizeNotify->notify_one();
+            _maxSizeNotify.notify_one();
             return true;
         }
 
@@ -66,7 +65,7 @@ namespace tools {
          * Push a value onto the container
          */
         void push(ValueType&& value) {
-            MutexLockGuard lock(*_mutex);
+            MutexLockGuard lock(_mutex);
             _container.push_back(std::forward<ValueType>(value));
         }
 
@@ -75,7 +74,7 @@ namespace tools {
          * @return the size() of the underlying container
          */
         size_t pushGetSize(ValueType&& value) {
-            MutexLockGuard lock(*_mutex);
+            MutexLockGuard lock(_mutex);
             _container.push_back(std::forward(value));
             return _container.size();
         }
@@ -85,8 +84,8 @@ namespace tools {
          * and then push.
          */
         void pushCheckMaxSize(ValueType value) {
-            MutexUniqueLock lock(*_mutex);
-            _maxSizeNotify->wait(lock, [this]()
+            MutexUniqueLock lock(_mutex);
+            _maxSizeNotify.wait(lock, [this]()
             {   return !this->_maxSize || (this->_container.size() <
                         this->_maxSize);});
             _container.push_back(std::move(value));
@@ -99,7 +98,7 @@ namespace tools {
          */
         template<typename U>
         bool popToPushBack(U* ret, size_t count = 10) {
-            MutexLockGuard lock(*_mutex);
+            MutexLockGuard lock(_mutex);
             if (_container.size() < count) {
                 if (_container.empty()) return false;
                 count = _container.size();
@@ -117,7 +116,7 @@ namespace tools {
          * @return size from the underlying container
          */
         size_t size() const noexcept {
-            MutexLockGuard lock(*_mutex);
+            MutexLockGuard lock(_mutex);
             return _container.size();
         }
 
@@ -135,10 +134,10 @@ namespace tools {
          * If the new size max is smaller, then the queue has to drain naturally
          */
         void setSizeMax(size_t sizeMax) noexcept {
-            MutexLockGuard lock(*_mutex);
+            MutexLockGuard lock(_mutex);
             size_t doNotify = _maxSize && (sizeMax > _maxSize) ? sizeMax - _maxSize : 0;
             _maxSize = sizeMax;
-            for(; doNotify; --doNotify) _maxSizeNotify->notify_one();
+            for(; doNotify; --doNotify) _maxSizeNotify.notify_one();
         }
 
         /**
@@ -147,7 +146,7 @@ namespace tools {
         template<typename InputIterator>
         void moveIn(InputIterator first, InputIterator last) {
             if (first == last) return;
-            MutexLockGuard lock(*_mutex);
+            MutexLockGuard lock(_mutex);
             do {
                 _container.emplace_back(std::move(*first));
             }
@@ -167,7 +166,7 @@ namespace tools {
          */
         template<typename U>
         void copy(U* u) {
-            MutexLockGuard lock(*_mutex);
+            MutexLockGuard lock(_mutex);
             for (auto&& itr: *u)
                 _container.emplace_back(itr);
         }
@@ -178,7 +177,7 @@ namespace tools {
          */
         template<typename Cmp = std::less<_Tp>>
         void sort(Cmp compare) {
-            MutexLockGuard lock(*_mutex);
+            MutexLockGuard lock(_mutex);
             std::sort(_container.begin(), _container.end(), compare);
         }
 
@@ -192,8 +191,8 @@ namespace tools {
 
     private:
         ContainerType _container;
-        mutable std::unique_ptr<Mutex> _mutex;
-        mutable std::unique_ptr<ConditionVariable> _maxSizeNotify;
+        mutable Mutex _mutex;
+        mutable ConditionVariable _maxSizeNotify;
         size_t _maxSize{};
     };
 
