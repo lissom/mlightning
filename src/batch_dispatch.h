@@ -129,7 +129,7 @@ namespace loader {
             using OrderedWaterFall = std::deque<ChunkDispatchInterface*>;
             using Key = tools::mtools::MongoCluster::ChunkIndexKey;
             using Value = ChunkDispatchPointer;
-            using LoadPlan = tools::Index<Key, Value, tools::BSONObjCmp>;
+            using LoadPlan = tools::Index<Key, Value, tools::BsonCompare>;
 
             struct Settings {
                 LoadQueues *loadQueues;
@@ -275,7 +275,7 @@ namespace loader {
             }
 
             void push(BsonV* q) {
-                std::sort(q->begin(), q->end(), tools::BSONObjCmp(owner()->sortIndex()));
+                std::sort(q->begin(), q->end(), tools::BsonCompare(owner()->sortIndex()));
                 send(q);
                 //TODO: remove this check
                 assert(q->empty());
@@ -323,7 +323,7 @@ namespace loader {
             }
 
             void prep() {
-                _queue.sort(Compare(tools::BSONObjCmp(owner()->sortIndex())));
+                _queue.sort(Compare(tools::BsonCompare(owner()->sortIndex())));
             }
 
             void doLoad();
@@ -334,7 +334,7 @@ namespace loader {
             }
 
         private:
-            using Compare = tools::IndexPairCompare<tools::BSONObjCmp, Bson>;
+            using Compare = tools::IndexPairCompare<tools::BsonCompare, Bson>;
 
             static const bool factoryRegisterCreator;
             tools::ConcurrentQueue<BsonPairDeque::value_type> _queue;

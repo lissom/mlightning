@@ -191,7 +191,7 @@ namespace loader {
             void clean();
 
         private:
-            using InputPlan = tools::Index<tools::mtools::MongoCluster::ChunkIndexKey, ChunkBatcherPointer, tools::BSONObjCmp>;
+            using InputPlan = tools::Index<tools::mtools::MongoCluster::ChunkIndexKey, ChunkBatcherPointer, tools::BsonCompare>;
 
             /**
              * Sets up a single name space

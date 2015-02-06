@@ -37,13 +37,13 @@ namespace tools {
      * Also makes it work for indexing used in index.h.
      * The functions for std::sort are defined.
      */
-    class BSONObjCmp {
+    class BsonCompare {
     public:
-        explicit BSONObjCmp(const mongo::BSONObj& obj) :
+        explicit BsonCompare(const mongo::BSONObj& obj) :
                 _order(mongo::Ordering::make(obj))
         {
         }
-        explicit BSONObjCmp(mongo::Ordering order) :
+        explicit BsonCompare(mongo::Ordering order) :
                 _order(std::move(order))
         {
         }
@@ -62,7 +62,7 @@ namespace tools {
             return buf.str();
         }
 
-        friend std::ostream& operator<<(std::ostream& o, BSONObjCmp& rhs) {
+        friend std::ostream& operator<<(std::ostream& o, BsonCompare& rhs) {
             o << std::string(rhs);
             return o;
         }
@@ -71,15 +71,15 @@ namespace tools {
         const mongo::Ordering _order;
     };
 
-    class BSONObjCmpDBG {
+    class BsonCompareDbg {
     public:
         using KeyType = mongo::BSONObj;
 
-        BSONObjCmpDBG(mongo::BSONObj obj) :
+        BsonCompareDbg(mongo::BSONObj obj) :
                 _ordering(mongo::Ordering::make(obj))
         {
         }
-        BSONObjCmpDBG(mongo::Ordering o) :
+        BsonCompareDbg(mongo::Ordering o) :
                 _ordering(std::move(o))
         {
         }
@@ -97,7 +97,7 @@ namespace tools {
             return _ordering;
         }
 
-        friend std::ostream& operator<<(std::ostream& o, BSONObjCmpDBG& rhs) {
+        friend std::ostream& operator<<(std::ostream& o, BsonCompareDbg& rhs) {
             //o << rhs.ordering();
             return o;
         }

@@ -62,7 +62,7 @@ namespace tools {
                 if (ns != prevNs) {
                     if (idx) idx->finalize();
                     prevNs = ns;
-                    idx = &index->emplace(ns, index_mapped_type(tools::BSONObjCmp(key))).first->second;
+                    idx = &index->emplace(ns, index_mapped_type(tools::BsonCompare(key))).first->second;
                 }
                 idx->insertUnordered(obj.getField("max").Obj().getOwned(), linkmap->find(mappingValue));
             }
@@ -100,7 +100,7 @@ namespace tools {
                 if (ns != prevNs) {
                     if (idx) idx->finalize();
                     prevNs = ns;
-                    idx = &index->emplace(ns, index_mapped_type(tools::BSONObjCmp(key))).first->second;
+                    idx = &index->emplace(ns, index_mapped_type(tools::BsonCompare(key))).first->second;
                 }
                 idx->insertUnordered(obj.getField("max").Obj().getOwned(),
                                      TagRange(linkmap->find(mappingValue),
