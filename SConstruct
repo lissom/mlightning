@@ -4,7 +4,7 @@ import sys
 import re
 from subprocess import Popen
 from SConfig import *
-from duplicity.path import Path
+# from duplicity.path import Path
 
 
 # Minimum SCons and Python version for plugin
