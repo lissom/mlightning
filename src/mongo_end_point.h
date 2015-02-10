@@ -126,9 +126,7 @@ namespace tools {
              * Push onto the thread queue
              */
             bool push(DbOpPointer dbOp) {
-                //TODO: figure out error handling, or change function, data is consumed even on false
-                assert(_opQueue.push(dbOp));
-                return true;
+                return _opQueue.push(dbOp);
             }
 
             /**
