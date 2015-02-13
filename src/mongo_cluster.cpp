@@ -196,8 +196,7 @@ namespace tools {
             _dbConn->update("config.settings", query, update, true);
         }
 
-        bool MongoCluster::stopBalancerWait(std::chrono::seconds wait) {
-            stopBalancer();
+        bool MongoCluster::waitForBalancerToStop(std::chrono::seconds wait) {
             if (wait > std::chrono::seconds(0)) {
                 using time = std::chrono::high_resolution_clock;
                 time::time_point start = time::now();
@@ -211,7 +210,11 @@ namespace tools {
                     std::this_thread::sleep_for(std::chrono::seconds(1));
                 return false;
             }
+        }
 
+        bool MongoCluster::stopBalancerWait(std::chrono::seconds wait) {
+            stopBalancer();
+            waitForBalancerToStop(wait);
         }
 
         bool MongoCluster::isBalancingEnabled(const NameSpace &ns) {

@@ -235,6 +235,11 @@ namespace tools {
             void stopBalancer();
 
             /**
+             * Waits for the balancer to stop
+             */
+            bool waitForBalancerToStop(std::chrono::seconds wait = std::chrono::seconds(0));
+
+            /**
              * Stops the balancer and then checks to see if it is running
              * @return true if running, false if not
              */

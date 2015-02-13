@@ -48,8 +48,10 @@ namespace loader {
     }
 
     void MongoInputProcessor::run() {
-        std::cout << "Stopping balancer for " << _mCluster.connStr().toString() << std::endl;
-        _mCluster.stopBalancerWait();
+        if (_mCluster.balancerIsRunning()) {
+            std::cout << "Waiting for balancer to stop.  Conn: " << _mCluster.connStr().toString() << std::endl;
+            _mCluster.waitForBalancerToStop();
+        }
         _inputShardChunks = _mCluster.getShardChunks(_ns);
         if (_inputShardChunks.empty()) {
             std::cerr << "There were no chunks found\nExiting" << std::endl;
