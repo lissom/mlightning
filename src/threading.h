@@ -66,8 +66,8 @@ namespace tools {
 
         ~ThreadPool() {
             //If the pool ended with endwait all work should be complete
-            //This can be broken if something is still inserting, this will just "warn" of that
-            if (_endWait && !_terminate) assert(!queueSize());
+            //If _endWait is true then either _terminate is true or queueSize should be zero
+            assert(_terminate || !_endWait || !queueSize());
             _terminate = true;
             _workNotify.notify_all();
             joinAll();

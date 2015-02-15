@@ -214,7 +214,7 @@ namespace tools {
 
         bool MongoCluster::stopBalancerWait(std::chrono::seconds wait) {
             stopBalancer();
-            waitForBalancerToStop(wait);
+            return waitForBalancerToStop(wait);
         }
 
         bool MongoCluster::isBalancingEnabled(const NameSpace &ns) {
