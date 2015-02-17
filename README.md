@@ -3,11 +3,11 @@
 mLightning
 ----------
 
-mlightning is a tool designed to quickly load data into [MongoDB](http://www.mongodb.org) sharded clusters.
+mlightning is a high speed router for loading data into [MongoDB](http://www.mongodb.org) sharded clusters.  Files or a MongoDB cluster are used as input.  To bypass mongoS either a hashed shard key or manually calculated presplits are required (calculating presplits will be added to mLightning in the future).  mongoS can be used if there aren't presplits available, however, be aware that this will generally be orders of magnitude slower with decent hardware.  Using a hash can be faster than calculating presplits in many cases with decent hardware, and so can be the better choice when using ephemeral data sets (for instance calculating end of day aggregate performance from several sources that are coalesced one dataset with MongoDB).
 
 Written in C++, it requires the following to compile:
 * C++11 support (gcc 4.8.2)
-* mongo-cxx-driver using the legacy branch, the flag -std=c++11 is required.
+* mongo-cxx-driver using the legacy branch, the flag -std=c++11 is required.  Known to compile against release legacy-v1.0.0.
 * boost - program options, system, regex, thread, chrono and filesystem.  Boost 1.55 in known to work, earlier versions may work, but this hasn't been tested.
 * scons (and therefore python)
 * tcmalloc (optional)
@@ -34,6 +34,7 @@ To compile and install the mongo C++ driver (assuming installing into /usr/local
 
 	git clone https://github.com/mongodb/mongo-cxx-driver.git
 	cd mongo-cxx-driver
+	git checkout legacy
 	sudo scons -j16 --opt=on --c++11 --prefix=/usr/local install
 
 #### mLightning
@@ -50,6 +51,6 @@ To compile mlightning with tcmalloc:
 Disclaimer
 ----------
 
-This software is not supported by [MongoDB, Inc.](http://www.mongodb.com) under any of their commercial support subscriptions or otherwise. Any usage of mtools is at your own risk. 
+This software is not supported by [MongoDB, Inc.](http://www.mongodb.com) under any of their commercial support subscriptions or otherwise. Any usage of mLightning is at your own risk. 
 Bug reports, feature requests and questions can be posted in the [Issues](https://github.com/lissom/mlightning/issues?state=open) section here on github. 
 

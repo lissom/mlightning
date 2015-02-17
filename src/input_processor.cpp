@@ -168,7 +168,7 @@ namespace loader {
         if (!files.size()) {
             std::cerr << "No files to load at: " << loadDir;
             if (_fileRegex.size())
-                std::cerr << "\nRegex: " << _fileRegex;
+                std::cerr << ". Using regex: " << _fileRegex;
             std::cerr << std::endl;
             exit(EXIT_SUCCESS);
         }
