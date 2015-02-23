@@ -138,7 +138,6 @@ namespace tools {
                 mongo::DBClientBase* dbConn = nullptr;
                 try {
                     DbOpPointer currentOp;
-                    //TODO: Implement a retry on connect failed DbConnection
                     std::string error;
                     int retries = 3;
                     for (;;) {
@@ -154,23 +153,27 @@ namespace tools {
                         exit(EXIT_FAILURE);
                     }
 
-
+                    /*
                     //Discount the first miss as the loop is probably starting dry
                     bool miss = false;
                     bool firstmiss = true;
                     size_t missCount {};
+                    */
                     while (!_threadPool.terminate()) {
                         if (pop(currentOp)) {
+                            /* For lockless
                             if (miss) {
                                 miss = false;
                                 firstmiss = false;
                                 std::cout << dbConn->toString() << ": Hitting" << std::endl;
                             }
+                            */
                             if(!currentOp->execute(dbConn))
                                 throw std::logic_error("Insert failed, terminating shoot out");
                         }
                         else {
                             if (_threadPool.endWait()) break;
+                            /*
                             //TODO: log levels.  If you are seeing misses std::cout is cheap
                             if (!miss && !firstmiss) {
                                 std::cout << dbConn->toString() << ": Missing" << std::endl;
@@ -178,25 +181,28 @@ namespace tools {
                             std::this_thread::sleep_for(std::chrono::milliseconds(_sleepTime));
                             miss = true;
                             if (!firstmiss) ++missCount;
+                            */
                         }
                     }
+                    /*
                     if (missCount) std::cout << "Endpoint misses: " << missCount << ".  Slept: "
                                              << missCount * _sleepTime / 1000 << " seconds"
                                              << std::endl;
+                                             */
                 }
                 catch (mongo::DBException& e) {
                     std::cerr << "End point failed: " << dbConn->toString()
-                            << "\nDBException: " << e.what() << std::endl;
+                            << ": DBException: " << e.what() << std::endl;
                     exit(EXIT_FAILURE);
                 }
                 catch (std::exception &e) {
                     std::cerr << "End point failed: " << dbConn->toString()
-                            << "\nstd::exception: " << e.what() << std::endl;
+                            << ": std::exception: " << e.what() << std::endl;
                     exit(EXIT_FAILURE);
                 }
                 catch (...) {
                     std::cerr << "End point failed: " << dbConn->toString()
-                            << "\nError unknown" << std::endl;
+                            << ": Error unknown" << std::endl;
                 }
 
             }
@@ -259,14 +265,14 @@ namespace tools {
              * @return MongoEndPoint for a specific shard/mongoS (though shouldn't need to be called
              * in the mongoS case)
              */
-            MongoEndPoint* at(const tools::mtools::MongoCluster::ShardName& shard) {
+            MongoEndPoint* const at(const tools::mtools::MongoCluster::ShardName& shard) {
                 return _epm.at(shard).get();
             }
 
             /**
              * Hand out end points in a round robin, use for mongoS
              */
-            MongoEndPoint* getMongoSCycle() {
+            MongoEndPoint* const getMongoSCycle() {
                 tools::MutexLockGuard lock(_cycleMutex);
                 //This assumes _cycleItr is initialized to begin()
                 ++_cycleItr;
