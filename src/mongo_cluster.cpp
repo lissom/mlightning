@@ -229,7 +229,7 @@ namespace tools {
         }
 
         bool MongoCluster::disableBalancing(const NameSpace &ns) {
-            _dbConn->update("config.collections", BSON("_id" << ns), BSON("noBalance" << true));
+            _dbConn->update("config.collections", BSON("_id" << ns), BSON("$set" << BSON("noBalance" << true)));
             std::string lastError = _dbConn->getLastError();
             if (lastError.empty())
                 return true;
@@ -239,7 +239,7 @@ namespace tools {
         }
 
         bool MongoCluster::enableBalancing(const NameSpace &ns) {
-            _dbConn->update("config.collections", BSON("_id" << ns), BSON("noBalance" << false));
+            _dbConn->update("config.collections", BSON("_id" << ns), BSON("$set" << BSON("noBalance" << false)));
             std::string lastError = _dbConn->getLastError();
             if (lastError.empty())
                 return true;
