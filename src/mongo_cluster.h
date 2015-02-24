@@ -69,7 +69,8 @@ namespace tools {
                               const bool unique__) :
                                   ns(std::move(ns__)), dropped(dropped__), key(std::move(key__)),
                                   unique(unique__)
-                                    { }
+                                    {
+                                    }
             };
             struct MetaDatabase {
                 DatabaseName name;
@@ -126,6 +127,10 @@ namespace tools {
 
             bool exists(const NameSpace &ns) {
                 return _colls.count(ns) > 0;
+            }
+
+            const MetaNameSpace& getNs(const NameSpace &ns) const {
+                return _colls.at(ns);
             }
 
             mongo::ConnectionString& connStr() {

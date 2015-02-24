@@ -102,6 +102,9 @@ namespace loader {
     void MongoInputProcessor::dispatchChunksForRead() {
         //todo: should change this to iterate by shard (i.e. while (shardChunks.size() .. for(.. if !size remove))
         //todo: may need to run in a different context for extremely large chunk counts so things kick off immediately
+        //Shardkey must be added so that hashed shard keys are properly accounted for
+        mongo::BSONObj shardKey = _mCluster.getNs(_ns).key;
+        if (shardKey.isEmpty()) throw std::logic_error("MongoInputProcessor::dispatchChunksForRead - shardKey to hint on cannot be empty.");
         for (auto&& shardChunks: _inputShardChunks) {
             auto endPoint = _endPoints.at(shardChunks.first);
             for (auto&& chunks: shardChunks.second) {
@@ -110,7 +113,7 @@ namespace loader {
                                                     this->inputQueryCallBack(op, status);
                                                 },
                     _ns,
-                    mongo::Query().minKey(chunks.min).maxKey(chunks.max)));
+                    mongo::Query().minKey(chunks.min).maxKey(chunks.max).hint(shardKey)));
                 ++_chunksRemaining;
             }
         }
