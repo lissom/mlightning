@@ -12,6 +12,9 @@ The balancer is turned off by mLightning by default.  I strongly suggest keeping
 Input is always direct from mongoD if using MongoDB as a source.
 Output can be either direct or use mongoS.  --output.direct 1 to use direct to shards.  It's much faster.
 
+#### Write concerns
+By default mlightning uses w:0.  If data cannot be lost then I would strongly suggest using w:2 (or whatever the majority is in the cluster being used).
+
 #### Import the test data in the import.original namespace.
 Lets assume there are a bunch of json files to import in /data
 mlightning --shardKey '{"_id":"hashed"}' --output.uri mongodb://127.0.0.1:27017 --output.direct 1 --output.db import --output.coll original --loadPath /data --dropDb 1

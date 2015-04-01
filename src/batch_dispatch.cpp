@@ -45,7 +45,10 @@ namespace loader {
                 _ns(std::move(ns)),
                 _loadPlan(_settings.sortIndex)
         {
-            _wc.nodes(_settings.writeConcern);
+            if (_settings.writeConcern == -1)
+                _wc = mongo::WriteConcern::majority;
+            else
+                _wc.nodes(_settings.writeConcern);
             init();
         }
 
