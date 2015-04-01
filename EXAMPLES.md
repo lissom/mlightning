@@ -13,6 +13,9 @@ Input is always direct from mongoD if using MongoDB as a source.
 Output can be either direct or use mongoS.  --output.direct 1 to use direct to shards.  It's much faster.
 
 #### Write concerns
+Option format:
+--output.writeConcern <number>
+If <number> = -1 then w:majority is used.
 By default mlightning uses w:0.  If data cannot be lost then I would strongly suggest using w:2 (or whatever the majority is in the cluster being used).
 
 #### Import the test data in the import.original namespace.
