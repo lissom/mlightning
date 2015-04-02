@@ -6,3 +6,5 @@ run-cr-update
 SConfig.pyc
 .pydevproject
 /SConfig.py
+*~
+*.orig
