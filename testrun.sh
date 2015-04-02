@@ -1,21 +1,22 @@
 #The hash test requires --dropDB 1 is required for verificatio to work as hashing is database wide
 #The hash test requires that a mongoS which can access the md5s is on localhost:27017 on the machine this script is ran on
+OPTIONS=
 ML_PATH=/home/charlie/git/mlightning/Debug/
 MONGO1=mongodb://127.0.0.1:27017
 MONGO2=mongodb://127.0.0.1:27017
 DATA_DIR=/home/charlie/serialshort/
 DIRECT=1
 echo ***Importing Data
-${ML_PATH}mlightning --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct 1 --output.db import --output.coll original --loadPath ${DATA_DIR} --dropDb 1
+${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct 1 --output.db import --output.coll original --loadPath ${DATA_DIR} --dropDb 1
 echo .
 echo .
 echo ***Changing shard key
-${ML_PATH}mlightning --shardKey '{"org":"hashed"}' --output.uri ${MONGO2} --output.writeConcern 1 --output.direct 1 --output.db trans --output.coll trans --input.uri ${MONGO1} --input.db import --input.coll original --dropDb 1
+${ML_PATH}mlightning ${OPTIONS} --shardKey '{"org":"hashed"}' --output.uri ${MONGO2} --output.writeConcern 1 --output.direct 1 --output.db trans --output.coll trans --input.uri ${MONGO1} --input.db import --input.coll original --dropDb 1
 echo .
 echo .
 echo ***Reverting back to original shard key
 #Direct isn't used here so routing is verified too
-${ML_PATH}mlightning --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct 0 --output.db mirror --output.coll mirror --input.uri ${MONGO2} --input.db trans --input.coll trans --dropDb 1
+${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct 0 --output.db mirror --output.coll mirror --input.uri ${MONGO2} --input.db trans --input.coll trans --dropDb 1
 echo .
 echo .
 echo ***Verifing
