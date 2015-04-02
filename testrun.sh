@@ -6,11 +6,11 @@ MONGO2=mongodb://127.0.0.1:27017
 DATA_DIR=/home/charlie/serialshort/
 DIRECT=1
 echo ***Importing Data
-${ML_PATH}mlightning --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.direct 1 --output.db import --output.coll original --loadPath ${DATA_DIR} --dropDb 1
+${ML_PATH}mlightning --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct 1 --output.db import --output.coll original --loadPath ${DATA_DIR} --dropDb 1
 echo .
 echo .
 echo ***Changing shard key
-${ML_PATH}mlightning --shardKey '{"org":"hashed"}' --output.uri ${MONGO2} --output.direct 1 --output.db trans --output.coll trans --input.uri ${MONGO1} --input.db import --input.coll original --dropDb 1
+${ML_PATH}mlightning --shardKey '{"org":"hashed"}' --output.uri ${MONGO2} --output.writeConcern 1 --output.direct 1 --output.db trans --output.coll trans --input.uri ${MONGO1} --input.db import --input.coll original --dropDb 1
 echo .
 echo .
 echo ***Reverting back to original shard key
