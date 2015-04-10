@@ -26,7 +26,6 @@ namespace tools {
         MongoCluster::MongoCluster(const std::string& connStr) :
                 _sharded(false)
         {
-            std::string error;
             _connStr = mongo::parseConnectionOrThrow(connStr);
             _dbConn = mongo::connectOrThrow(_connStr);
             loadCluster();
