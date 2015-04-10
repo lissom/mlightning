@@ -54,9 +54,9 @@ namespace tools {
             std::string prevNs;
             while (cur->more()) {
                 mongo::BSONObj obj = cur->next();
-                std::string mappingValue = obj.getStringField(mappingName);
+                const std::string mappingValue = obj.getStringField(mappingName);
                 assert(!mappingValue.empty());
-                std::string ns = obj.getStringField(group);
+                const std::string ns = obj.getStringField(group);
                 assert(!ns.empty());
                 if (ns != prevNs) {
                     if (idx) idx->finalize();
@@ -117,7 +117,7 @@ namespace tools {
             mongo::Cursor cur = _dbConn->query("config.shards", mongo::BSONObj());
             while (cur->more()) {
                 auto obj = cur->next();
-                std::string shard = obj.getStringField("_id");
+                const std::string shard = obj.getStringField("_id");
                 std::string connect = obj.getStringField("host");
                 size_t shardnamepos = connect.find_first_of('/');
                 //If this is a replica the name starts: replicaName/<host list>, standalone: <host>
@@ -150,7 +150,7 @@ namespace tools {
             cur = _dbConn->query("config.databases", mongo::BSONObj());
             while (cur->more()) {
                 auto obj = cur->next();
-                std::string dbName = obj.getStringField("_id");
+                const std::string dbName = obj.getStringField("_id");
                 _dbs.emplace(std::make_pair(dbName,
                         MetaDatabase(dbName, obj.getBoolField("partitioned"), obj.getStringField("primary"))));
             }
@@ -159,7 +159,7 @@ namespace tools {
             DatabaseName prevDb;
             while (cur->more()) {
                 auto obj = cur->next();
-                NameSpace currNs = obj.getStringField("_id");
+                const NameSpace currNs = obj.getStringField("_id");
                 _colls.emplace(std::make_pair(currNs, MetaNameSpace(currNs, obj.getBoolField("dropped"),
                                obj.getObjectField("key").getOwned(), obj.getBoolField("unique"))));
             }
@@ -188,11 +188,12 @@ namespace tools {
         }
 
         void MongoCluster::stopBalancer() {
-            mongo::BSONObj query = BSON("_id" << "balancer");
-            mongo::BSONObj update = BSON("$set" << BSON("stopped" << true));
-            mongo::BSONObj info;
-
+            auto query = BSON("_id" << "balancer");
+            auto update = BSON("$set" << BSON("stopped" << true));
             _dbConn->update("config.settings", query, update, true);
+            std::string lastError = _dbConn->getLastError();
+            if (lastError.empty())
+                std::cerr << "Failed to stop balancer. Error: " << lastError << std::endl;
         }
 
         bool MongoCluster::waitForBalancerToStop(std::chrono::seconds wait) {
