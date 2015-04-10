@@ -48,7 +48,8 @@ namespace loader {
 
     MongoInputProcessor::~MongoInputProcessor() {
         //Renable balancing on the input namespace if we disabled it
-        (void)_mCluster.enableBalancing(_owner->settings().input.ns());
+        if (_didDisableBalancerForNS)
+            (void)_mCluster.enableBalancing(_owner->settings().input.ns());
     }
 
     void MongoInputProcessor::run() {
