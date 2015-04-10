@@ -253,6 +253,11 @@ namespace tools {
             /**
              * Is the balancer enabled for this specific collection
              */
+            bool isBalancerEnabled();
+
+            /**
+             * Is the balancer enabled for this specific collection
+             */
             bool isBalancingEnabled(const NameSpace &ns);
 
             /**

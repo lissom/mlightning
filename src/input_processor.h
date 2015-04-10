@@ -107,6 +107,8 @@ namespace loader {
         tools::ConcurrentQueue<BsonContainer> _inputQueue;
         std::unique_ptr<tools::ThreadPool> _tpBatcher;
 
+        bool _didDisableBalancerForNS;
+
         static const bool _registerFactory;
     };
 

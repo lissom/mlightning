@@ -51,7 +51,7 @@ namespace tools {
             //The indexes held type
             using index_mapped_type = typename IndexType::mapped_type;
             index_mapped_type* idx = nullptr;
-            mongo::Cursor cur = _dbConn->query(queryNs, mongo::Query().sort(BSON(group << 1)));
+            auto cur = _dbConn->query(queryNs, mongo::Query().sort(BSON(group << 1)));
             std::string prevNs;
             while (cur->more()) {
                 mongo::BSONObj obj = cur->next();
@@ -72,7 +72,7 @@ namespace tools {
 
         MongoCluster::ShardChunks MongoCluster::getShardChunks(const NameSpace &ns) {
             ShardChunks shardChunks;
-            mongo::Cursor cur = _dbConn->query("config.chunks", BSON("ns" << ns));
+            auto cur = _dbConn->query("config.chunks", BSON("ns" << ns));
             while (cur->more()) {
                 mongo::BSONObj obj = cur->next();
                 shardChunks[obj.getStringField("shard")].push_back(
@@ -89,7 +89,7 @@ namespace tools {
             //The indexes held type
             using index_mapped_type = typename NsTagUBIndex::mapped_type;
             index_mapped_type* idx = nullptr;
-            mongo::Cursor cur = _dbConn->query(queryNs, mongo::Query().sort(BSON(group << 1)));
+            auto cur = _dbConn->query(queryNs, mongo::Query().sort(BSON(group << 1)));
             std::string prevNs;
             while (cur->more()) {
                 mongo::BSONObj obj = cur->next();
@@ -117,7 +117,7 @@ namespace tools {
             //Load shards && tag map
             mongo::Cursor cur = _dbConn->query("config.shards", mongo::BSONObj());
             while (cur->more()) {
-                mongo::BSONObj obj = cur->next();
+                auto obj = cur->next();
                 std::string shard = obj.getStringField("_id");
                 std::string connect = obj.getStringField("host");
                 size_t shardnamepos = connect.find_first_of('/');
@@ -144,13 +144,13 @@ namespace tools {
             //Get all the mongoS
             cur = _dbConn->query("config.mongos", mongo::BSONObj());
             while (cur->more()) {
-                mongo::BSONObj o = cur->next();
+                auto o = cur->next();
                 _mongos.emplace_back(std::string("mongodb://") + o.getStringField("_id"));
             }
 
             cur = _dbConn->query("config.databases", mongo::BSONObj());
             while (cur->more()) {
-                mongo::BSONObj obj = cur->next();
+                auto obj = cur->next();
                 std::string dbName = obj.getStringField("_id");
                 _dbs.emplace(std::make_pair(dbName,
                         MetaDatabase(dbName, obj.getBoolField("partitioned"), obj.getStringField("primary"))));
@@ -159,7 +159,7 @@ namespace tools {
             cur = _dbConn->query("config.collections", mongo::BSONObj());
             DatabaseName prevDb;
             while (cur->more()) {
-                mongo::BSONObj obj = cur->next();
+                auto obj = cur->next();
                 NameSpace currNs = obj.getStringField("_id");
                 _colls.emplace(std::make_pair(currNs, MetaNameSpace(currNs, obj.getBoolField("dropped"),
                                obj.getObjectField("key").getOwned(), obj.getBoolField("unique"))));
@@ -217,12 +217,20 @@ namespace tools {
             return waitForBalancerToStop(wait);
         }
 
+        bool MongoCluster::isBalancerEnabled() {
+            auto result = _dbConn->findOne("config.settings", BSON("_id" << "balancer" << "stopped" << true));
+            if (strcmp(result.firstElementFieldName(), "$err") == 0 ) {
+                throw std::logic_error("Unable to get query for balancer state in bool MongoCluster::isBalancerEnabled()");
+            }
+            return !strcmp("stopped", result.getStringField("balancer"));
+        }
+
         bool MongoCluster::isBalancingEnabled(const NameSpace &ns) {
-            mongo::BSONObj obj = _dbConn->findOne("config.collections", BSON("_id" << ns << "noBalance" << true));
+            auto result = _dbConn->findOne("config.collections", BSON("_id" << ns << "noBalance" << true));
             //If there are no results, then it's no disabled
-            if (obj.isEmpty())
+            if (result.isEmpty())
                 return false;
-            if (strcmp(obj.firstElementFieldName(), "$err") == 0 ) {
+            if (strcmp(result.firstElementFieldName(), "$err") == 0 ) {
                 throw std::logic_error("Unable to get query for balancer state in bool MongoCluster::isBalancingEnabled(const NameSpace &ns)");
             }
             return true;
@@ -249,7 +257,7 @@ namespace tools {
         }
 
         void MongoCluster::waitForChunksPerShard(std::string ns, int chunksPerShard) {
-            mongo::BSONObj aggOpts = mongo::BSONObjBuilder().append("allowDiskUse", true)
+            auto aggOpts = mongo::BSONObjBuilder().append("allowDiskUse", true)
                         .append("cursor", BSON("batchSize" << 10000)).obj();
             //Get the numbers returned in case we ever want to output
             mongo::BSONObj agg = BSON_ARRAY(BSON("$match" << BSON("ns" << ns))
@@ -275,7 +283,7 @@ namespace tools {
         }
 
         bool MongoCluster::enableSharding(const DatabaseName &dbName, mongo::BSONObj* info) {
-            mongo::BSONObj cmd = BSON("enableSharding" << dbName);
+            auto cmd = BSON("enableSharding" << dbName);
             return _dbConn->runCommand("admin", cmd, *info);
         }
 

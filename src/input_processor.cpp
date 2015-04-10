@@ -37,13 +37,17 @@ namespace loader {
         _mCluster(_owner->settings().input.uri),
         _endPoints(_owner->settings().input.endPoints, _mCluster),
         _ns(_owner->settings().input.ns()),
-        _tpBatcher(new tools::ThreadPool(_owner->settings().threads)) {
-        if (!_mCluster.disableBalancing(_owner->settings().input.ns()))
-            exit(EXIT_FAILURE);
+        _tpBatcher(new tools::ThreadPool(_owner->settings().threads)),
+        _didDisableBalancerForNS( _mCluster.isBalancingEnabled(_owner->settings().input.ns())) {
+        if (_didDisableBalancerForNS) {
+           if (!_mCluster.disableBalancing(_owner->settings().input.ns()))
+             exit(EXIT_FAILURE);
+        }
         _inputQueue.setSizeMax(MONGOINPUT_DEFAULT_MAX_SIZE);
     }
 
     MongoInputProcessor::~MongoInputProcessor() {
+        //Renable balancing on the input namespace if we disabled it
         (void)_mCluster.enableBalancing(_owner->settings().input.ns());
     }
 
