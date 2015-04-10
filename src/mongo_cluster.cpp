@@ -54,7 +54,7 @@ namespace tools {
             std::string prevNs;
             while (cur->more()) {
                 mongo::BSONObj obj = cur->next();
-                auto mappingValue = obj.getStringField(mappingName);
+                std::string mappingValue = obj.getStringField(mappingName);
                 assert(!mappingValue.empty());
                 std::string ns = obj.getStringField(group);
                 assert(!ns.empty());
