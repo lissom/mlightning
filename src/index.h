@@ -144,6 +144,10 @@ namespace tools {
         /**
          * Moves into the container in an unordered fashion, must be sorted afterward if desired
          */
+        void insertUnordered(std::pair<Key, Value>&& pair) {
+            _container.emplace_back(std::forward<std::pair<Key, Value>>(pair));
+        }
+
         void insertUnordered(Key key, Value&& value) {
             _container.emplace_back(std::make_pair(std::move(key), std::forward<Value>(value)));
         }

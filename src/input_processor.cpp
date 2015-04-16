@@ -13,11 +13,11 @@
  *    limitations under the License.
  */
 
-#include <regex>
 #include <boost/filesystem.hpp>
 #include "loader.h"
+#include "loader_defs.h"
 #include "input_processor.h"
-#include "input_types.h"
+#include <regex>
 #include <string.h>
 #include "util/hasher.h"
 
@@ -26,11 +26,11 @@ namespace loader {
     const size_t MONGOINPUT_DEFAULT_MAX_SIZE = 100;
 
     const bool MongoInputProcessor::_registerFactory = InputProcessorFactory::registerCreator(
-            MONGO_CLUSTER_INPUT, &MongoInputProcessor::create);
+            INPUT_MONGO, &MongoInputProcessor::create);
     const bool FileInputProcessor::_registerFactoryJson = InputProcessorFactory::registerCreator(
-            JSON_INPUT, &FileInputProcessor::create);
+            INPUT_JSON, &FileInputProcessor::create);
     const bool FileInputProcessor::_registerFactoryBson = InputProcessorFactory::registerCreator(
-            BSON_INPUT, FileInputProcessor::create);
+            INPUT_BSON, FileInputProcessor::create);
 
     MongoInputProcessor::MongoInputProcessor(Loader* const owner) :
         _owner(owner),
@@ -59,7 +59,7 @@ namespace loader {
         }
         _inputShardChunks = _mCluster.getShardChunks(_ns);
         if (_inputShardChunks.empty()) {
-            std::cerr << "There were no chunks found\nExiting" << std::endl;
+            std::cerr << "There were no chunks found for: " + _ns + "\nExiting" << std::endl;
             //Assuming there were supposed to be chunks this is an error
             exit(EXIT_FAILURE);
         }
@@ -110,9 +110,14 @@ namespace loader {
         //Shardkey must be added so that hashed shard keys are properly accounted for
         mongo::BSONObj shardKey = _mCluster.getNs(_ns).key;
         if (shardKey.isEmpty()) throw std::logic_error("MongoInputProcessor::dispatchChunksForRead - shardKey to hint on cannot be empty.");
+        if (_inputShardChunks.empty()) throw std::logic_error("MongoInputProcessor::dispatchChunksForRead - no chunks found for reading");
         for (auto&& shardChunks: _inputShardChunks) {
-            auto endPoint = _endPoints.at(shardChunks.first);
-            for (auto&& chunks: shardChunks.second) {
+            EndPointHolder::MongoEndPoint* endPoint;
+            if (_endPoints.directLoad())
+                endPoint = _endPoints.at(shardChunks.first);
+            else
+                endPoint = _endPoints.getMongoSCycle();
+            for (const auto& chunks: shardChunks.second) {
                 endPoint->push(tools::mtools::OpQueueQueryBulk::make(
                         [this](tools::mtools::DbOp* op, tools::mtools::OpReturnCode status) {
                                                     this->inputQueryCallBack(op, status);
@@ -255,7 +260,7 @@ namespace loader {
     DocumentProcessor::DocumentProcessor(Loader* const owner) :
             _owner(owner),
             _add_id(_owner->settings().indexHas_id && _owner->settings().add_id),
-            _keys(_owner->settings().shardKeysBson),
+            _keys(_owner->settings().shardKeyBson),
             _keyFieldsCount(_keys.nFields()),
             _inputAggregator(_owner->queueSettings(),
                     _owner->cluster(),

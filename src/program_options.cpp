@@ -17,6 +17,8 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 #include <thread>
+#include "loader_defs.h"
+
 
 namespace loader {
 
@@ -66,8 +68,8 @@ namespace loader {
         const std::string supportedLoadStrategies = "BSON format doc of queuing *per shard* to use: '{\"direct\": 98, "
                 "\"ram\": 2}'"
                 "\nNote that presplits for very large numbers can be lengthy(i.e. over 100)!  Total splits = sum of queues * number of shards"
-                "\nCurrently supported: "
-                + loader::docbuilder::ChunkBatchFactory::getKeysPretty() + "\nDirect between 10 and 100 is recommended";
+                "\nCurrently supported: direct, ram"
+                "\nDirect between 10 and 100 is recommended";
         const std::string supportedInputTypes = "Input types: " +
                 loader::InputProcessorFactory::getKeysPretty();
         generic.add_options()
@@ -80,6 +82,8 @@ namespace loader {
                     "logFile - NOT YET IMPLEMENTED")*/
             ("inputType,T", po::value<std::string>(&settings.inputType)->default_value("json"),
                     supportedInputTypes.c_str())
+            ("outputType,O", po::value<std::string>(&settings.outputType)->default_value("mongo"),
+                                "Either mongo or file, defaults to mongo")
             ("loadPath,p", po::value<std::string>(&settings.loadPath),
                     "directory to load files from")
             ("fileRegex,r", po::value<std::string>(&settings.fileRegex),
@@ -90,7 +94,7 @@ namespace loader {
                     "DANGER: Drop the database")
             ("dropColl", po::value<bool>(&settings.dropColl)->default_value(false),
                     "DANGER: Drop the collection")
-            ("shardKey,k", po::value<std::string>(&settings.shardKeyJson)->required(),
+            ("shardKey,k", po::value<std::string>(&settings.shardKeyJson),
                     "Dotted fields not supported (i.e. subdoc.field) must quote fields "
                     "'(\"_id\":\"hashed\"'")
             ("shardKeyUnique", po::value<bool>(&settings.shardKeyUnique)->default_value(false),
@@ -139,7 +143,7 @@ namespace loader {
         if (vm.count("help") || !errormsg.empty()) {
             cmdline.print(std::cout);
             if (!errormsg.empty()) std::cerr << "Unable to parse options: " + errormsg << std::endl;
-            exit(0);
+            exit(EXIT_FAILURE);
         }
         //Set to -1 to signify the default, which is to
         //drop and recreate if the collection is empty

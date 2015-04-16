@@ -27,13 +27,13 @@
 namespace loader {
     namespace docbuilder {
 
-        class InputNameSpaceContainer;
+        class InputChunkBatcherHolder;
         class ChunkBatcherInterface;
 
         using ChunkBatcherPointer = std::unique_ptr<ChunkBatcherInterface>;
 
         using CreateBatcherFunction =
-                std::function<ChunkBatcherPointer(InputNameSpaceContainer* owner,
+                std::function<ChunkBatcherPointer(InputChunkBatcherHolder* owner,
                 const Bson& UBIndex)>;
         /*
          * This factory is used to create chunks for settings file
@@ -88,14 +88,9 @@ namespace loader {
             virtual void push(DocumentBuilderInterface* stage) = 0;
 
             /**
-             * Is the queue empty?
-             */
-            virtual bool empty() const = 0;
-
-            /**
              *  Makes a final push to clear the queue
              */
-            virtual void clean() = 0;
+            virtual void cleanUpQueue() = 0;
 
             virtual ~ChunkBatcherInterface() {
             }
@@ -110,7 +105,7 @@ namespace loader {
             /**
              * @return the holder
              */
-            InputNameSpaceContainer* owner() {
+            InputChunkBatcherHolder* owner() {
                 return _owner;
             }
 
@@ -126,10 +121,10 @@ namespace loader {
             }
 
         protected:
-            ChunkBatcherInterface(InputNameSpaceContainer* owner, Bson UBIndex);
+            ChunkBatcherInterface(InputChunkBatcherHolder* owner, Bson UBIndex);
 
         private:
-            InputNameSpaceContainer *_owner;
+            InputChunkBatcherHolder *_owner;
             size_t _queueSize;
             dispatch::ChunkDispatchInterface *_dispatcher;
             const Bson _UBIndex;
@@ -139,7 +134,7 @@ namespace loader {
          * InputNameSpaceContainer is not thread safe.  It aggregates documents into batches for passing onto
          * an operation dispatcher.  This is only valid for a single namespace.
          */
-        class InputNameSpaceContainer {
+        class InputChunkBatcherHolder {
         public:
             struct Settings {
                 LoadQueues *loadQueues;
@@ -147,7 +142,7 @@ namespace loader {
                 size_t queueSize;
             };
 
-            InputNameSpaceContainer(Settings settings,
+            InputChunkBatcherHolder(Settings settings,
                             tools::mtools::MongoCluster& mCluster,
                             dispatch::ChunkDispatcher* out,
                             tools::mtools::MongoCluster::NameSpace ns) :
@@ -160,8 +155,8 @@ namespace loader {
                 init(_ns);
             }
 
-            ~InputNameSpaceContainer() {
-                clean();
+            ~InputChunkBatcherHolder() {
+                cleanUpAllQueues();
             }
 
             /**
@@ -186,9 +181,10 @@ namespace loader {
             }
 
             /**
-             * Clear the queues
+             * Force all queues to push data upstream
+             * This class does *not* push on d'tor, this function must be called
              */
-            void clean();
+            void cleanUpAllQueues();
 
         private:
             using InputPlan = tools::Index<tools::mtools::MongoCluster::ChunkIndexKey, ChunkBatcherPointer, tools::BsonCompare>;
@@ -216,25 +212,22 @@ namespace loader {
 
         class DirectQueue : public ChunkBatcherInterface {
         public:
-            DirectQueue(InputNameSpaceContainer* owner, Bson UBIndex) :
+            DirectQueue(InputChunkBatcherHolder* owner, Bson UBIndex) :
                     ChunkBatcherInterface(owner, std::move(UBIndex))
             {
                 _bsonHolder.reserve(queueSize());
             }
 
             void push(DocumentBuilderInterface* stage) {
-                _bsonHolder.push_back(stage->getFinalDoc());
-                if (_bsonHolder.size() >= queueSize()) {
-                    postTo()->push(&_bsonHolder);
-                    _bsonHolder.reserve(queueSize());
-                }
+                _bsonHolder.emplace_back(stage->getFinalDoc());
+                if (_bsonHolder.size() >= queueSize()) doPush();
             }
 
-            void clean() {
+            void cleanUpQueue() {
                 if (!_bsonHolder.empty()) postTo()->push(&_bsonHolder);
             }
 
-            static ChunkBatcherPointer create(InputNameSpaceContainer* owner, const Bson& UBIndex) {
+            static ChunkBatcherPointer create(InputChunkBatcherHolder* owner, const Bson& UBIndex) {
                 return ChunkBatcherPointer(new DirectQueue(owner, UBIndex));
             }
 
@@ -243,34 +236,29 @@ namespace loader {
 
             static const bool factoryRegisterCreator;
 
-            bool empty() const {
-                return _bsonHolder.empty();
+            void doPush() {
+                postTo()->push(&_bsonHolder);
+                _bsonHolder.reserve(queueSize());
             }
         };
 
         class RAMQueue : public ChunkBatcherInterface {
         public:
-            RAMQueue(InputNameSpaceContainer* owner, Bson UBIndex) :
+            RAMQueue(InputChunkBatcherHolder* owner, Bson UBIndex) :
                 ChunkBatcherInterface(owner, std::move(UBIndex))
             {
             }
 
             void push(DocumentBuilderInterface* stage) {
-                _bsonHolder.push_back(std::make_pair(stage->getIndex(), stage->getFinalDoc()));
-                if (_bsonHolder.size() > queueSize()) {
-                    postTo()->pushSort(&_bsonHolder);
-                }
+                _bsonHolder.emplace_back(std::make_pair(stage->getIndex(), stage->getFinalDoc()));
+                if (_bsonHolder.size() > queueSize()) doPush();
             }
 
-            void clean() {
+            void cleanUpQueue() {
                 if (!_bsonHolder.empty()) postTo()->pushSort(&_bsonHolder);
             }
 
-            bool empty() const {
-                return _bsonHolder.empty();
-            }
-
-            static ChunkBatcherPointer create(InputNameSpaceContainer* owner, Bson UBIndex)
+            static ChunkBatcherPointer create(InputChunkBatcherHolder* owner, Bson UBIndex)
             {
                 return ChunkBatcherPointer(new RAMQueue(owner, std::move(UBIndex)));
             }
@@ -278,6 +266,41 @@ namespace loader {
         private:
             static const bool factoryRegisterCreator;
             BsonPairDeque _bsonHolder;
+
+            void doPush() {
+                postTo()->pushSort(&_bsonHolder);
+            }
+
+        };
+
+        class DiskQueue : public ChunkBatcherInterface {
+        public:
+            DiskQueue(InputChunkBatcherHolder* owner, Bson UBIndex) :
+                ChunkBatcherInterface(owner, std::move(UBIndex))
+            {
+            }
+
+            void push(DocumentBuilderInterface* stage) {
+                _bsonHolder.emplace_back(stage->getFinalDoc());
+                if (_bsonHolder.size() > queueSize()) doPush();
+            }
+
+            void cleanUpQueue() {
+                if (!_bsonHolder.empty()) doPush();
+            }
+
+            static ChunkBatcherPointer create(InputChunkBatcherHolder* owner, Bson UBIndex)
+            {
+                return ChunkBatcherPointer(new RAMQueue(owner, std::move(UBIndex)));
+            }
+
+        private:
+            static const bool factoryRegisterCreator;
+            BsonQ _bsonHolder;
+
+            void doPush() {
+                postTo()->pushQ(&_bsonHolder);
+            }
 
         };
 
@@ -287,12 +310,12 @@ namespace loader {
          */
         class IndexedBucketQueue : public DirectQueue {
         public:
-            IndexedBucketQueue(InputNameSpaceContainer* owner, const Bson& UBIndex) :
+            IndexedBucketQueue(InputChunkBatcherHolder* owner, const Bson& UBIndex) :
                     DirectQueue(owner, UBIndex)
             {
             }
 
-            static ChunkBatcherPointer create(InputNameSpaceContainer* owner,
+            static ChunkBatcherPointer create(InputChunkBatcherHolder* owner,
                                            const Bson& UBIndex,
                                            const Bson& index)
             {

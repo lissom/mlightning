@@ -192,7 +192,7 @@ namespace loader {
         const bool _add_id;
         const mongo::BSONObj _keys;
         int _keyFieldsCount;
-        docbuilder::InputNameSpaceContainer _inputAggregator;
+        docbuilder::InputChunkBatcherHolder _inputAggregator;
         mongo::BSONObjBuilder *_extra = NULL;
         mongo::BSONObj _docShardKey;
         bool _added_id{};

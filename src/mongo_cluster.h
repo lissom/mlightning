@@ -64,11 +64,12 @@ namespace tools {
                 bool dropped;
                 mongo::BSONObj key;
                 bool unique;
+                bool virt;
 
                 MetaNameSpace(NameSpace ns__, const bool dropped__, mongo::BSONObj key__,
-                              const bool unique__) :
+                              const bool unique__,  const bool virt__ = false) :
                                   ns(std::move(ns__)), dropped(dropped__), key(std::move(key__)),
-                                  unique(unique__)
+                                  unique(unique__), virt(virt__)
                                     {
                                     }
             };
@@ -76,9 +77,11 @@ namespace tools {
                 DatabaseName name;
                 bool partitioned;
                 ShardName primary;
-                MetaDatabase(DatabaseName name__, const bool partitioned__, ShardName primary__) :
+                bool virt;
+                MetaDatabase(DatabaseName name__, const bool partitioned__, ShardName primary__,
+                        const bool virt__ = false) :
                     name(std::move(name__)), partitioned(partitioned__),
-                    primary(std::move(primary__))
+                    primary(std::move(primary__)), virt(virt__)
                 { }
             };
             //ShardMap is a map of mongo connection string to shards
@@ -215,13 +218,19 @@ namespace tools {
             /**
              * MongoDB commands.  These operate exactly like the manual stats
              */
-            bool enableSharding(const DatabaseName& dbName, mongo::BSONObj* info);
+            bool enableSharding(const DatabaseName& dbName, mongo::BSONObj& info);
 
             bool shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
-                                 const bool unique, mongo::BSONObj *info);
+                                 const bool unique, mongo::BSONObj &info);
+
             //Presharding for a hashed shard key
             bool shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
-                                 const bool unique, int chunk, mongo::BSONObj *info);
+                                 const bool unique, const int initialChunks, mongo::BSONObj& info);
+
+            //Puts the collection into the MongoCluster namespace only
+            bool shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
+                                 const bool unique, const int initialChunks, mongo::BSONObj& info,
+                                 const bool manual);
 
             //Flush all router configs
             void flushRouterConfigs();
@@ -333,12 +342,17 @@ namespace tools {
             /*
              * Stores if sharding info could be loaded
              */
-            bool _sharded;
+            bool _sharded = false;
 
             /**
              * clears all values for the loaded cluster
              */
             void clear();
+
+            /**
+             * Create a namespace
+             */
+            void initializeShardedNamespace(const std::string &ns);
 
             //These private use templates are defined in the .cpp file
             /**

@@ -48,6 +48,7 @@
 									<listOptionValue builtIn="false" value="boost_thread"/>
 									<listOptionValue builtIn="false" value="boost_chrono"/>
 									<listOptionValue builtIn="false" value="boost_filesystem"/>
+									<listOptionValue builtIn="false" value="snappy"/>
 								</option>
 								<option id="gnu.cpp.link.option.debugging.prof.755541689" name="Generate prof information (-p)" superClass="gnu.cpp.link.option.debugging.prof" value="true" valueType="boolean"/>
 								<option id="gnu.cpp.link.option.debugging.gprof.2119747958" name="Generate gprof information (-pg)" superClass="gnu.cpp.link.option.debugging.gprof" value="false" valueType="boolean"/>
@@ -114,6 +115,7 @@
 									<listOptionValue builtIn="false" value="boost_thread"/>
 									<listOptionValue builtIn="false" value="boost_chrono"/>
 									<listOptionValue builtIn="false" value="boost_filesystem"/>
+									<listOptionValue builtIn="false" value="snappy"/>
 								</option>
 								<option id="gnu.cpp.link.option.debugging.prof.1871358095" name="Generate prof information (-p)" superClass="gnu.cpp.link.option.debugging.prof" value="true" valueType="boolean"/>
 								<option id="gnu.cpp.link.option.debugging.gprof.56020506" name="Generate gprof information (-pg)" superClass="gnu.cpp.link.option.debugging.gprof" value="false" valueType="boolean"/>

@@ -25,6 +25,23 @@ namespace loader {
     using BsonQ = std::deque<mongo::BSONObj>;
     using BsonPairDeque = std::deque<std::pair<mongo::BSONObj, mongo::BSONObj>>;
     using LoadQueues = std::vector<std::string>;
+
+    enum class Compression : char { none = 0, snappy = 1 };
+
+    /*
+     * Output Types
+     */
+    const char OUTPUT_FILE[] = "file";
+    const char OUTPUT_MONGO[] = "mongo";
+    /*
+     * Input types
+     */
+    /*extern const char MONGO_CLUSTER_INPUT[];
+    extern const char JSON_INPUT[];
+    extern const char BSON_INPUT[];*/
+    const char INPUT_MONGO[] = "mongo";
+    const char INPUT_JSON[] = "json";
+    const char INPUT_BSON[] = "bson";
 }  //namespace loader
 
 

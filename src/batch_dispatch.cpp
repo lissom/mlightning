@@ -13,6 +13,7 @@
  *    limitations under the License.
  */
 
+#include <snappy.h>
 #include "batch_dispatch.h"
 
 namespace loader {
@@ -24,14 +25,20 @@ namespace loader {
         const bool RAMQueueDispatch::factoryRegisterCreator = ChunkDispatcherFactory::registerCreator(
                 "ram",
                 &RAMQueueDispatch::create);
+        const bool DiskQueueBoundedFileDispatch::factoryRegisterCreator = ChunkDispatcherFactory::registerCreator(
+                "ml1",
+                &DiskQueueBoundedFileDispatch::create);
 
         ChunkDispatchInterface::ChunkDispatchInterface(Settings settings) :
                 _settings(std::move(settings)),
                 _bulkWriteVersion(_settings.owner->bulkWriteVersion())
         {
-            if (_settings.owner->directLoad()) _ep = _settings.owner->getEndPointForChunk(_settings
-                    .chunkUB);
-            else _ep = _settings.owner->getMongoSCycle();
+            //If we are outputting to an endpoint, get the connection info
+            if (_settings.eph) {
+                if (_settings.owner->directLoad()) _ep = _settings.owner->getEndPointForChunk(_settings
+                        .chunkUB);
+                else _ep = _settings.owner->getMongoSCycle();
+            }
         }
 
         ChunkDispatcher::ChunkDispatcher(Settings settings,
@@ -83,7 +90,8 @@ namespace loader {
             return wf;
         }
 
-        void RAMQueueDispatch::doLoad() {
+        void RAMQueueDispatch::finalize() {
+            _queue.sort(Compare(tools::BsonCompare(owner()->sortIndex())));
             tools::mtools::DataQueue sendQueue;
             size_t queueSize = owner()->queueSize();
             for (auto& i : _queue.unSafeAccess()) {
@@ -97,5 +105,85 @@ namespace loader {
             if (sendQueue.size())
                 send(&sendQueue);
         }
-    }
+
+        void DiskQueueBoundedFileDispatch::spill() {
+            assert(settings().maxSize);
+            bool doBreak = false;
+            size_t size{};
+            Queue toCompress;
+
+            //Grab the current buffer, will return extra at the end
+            tools::MutexUniqueLock lock(_mutex);
+            Queue localHolder;
+            localHolder.swap(_queue);
+            _size = 0;
+            lock.release();
+
+
+            std::string fileCountName = std::to_string(_fileCount++);
+            if (fileCountName.size() < 4)
+                fileCountName.insert(0, "0", fileCountName.size());
+            while (localHolder.size()) {
+                auto& container = localHolder.front();
+                size_t count{};
+                for (const auto& doc: container)
+                {
+                    //If we have exceeded the max size, end the writes to disk
+                    size += doc.objsize();
+                    if (size > settings().maxSize) {
+                        size -= doc.objsize();
+                        doBreak = true;
+                        break;
+                    }
+                    count ++;
+                }
+                if (doBreak) {
+                    //If the first doc checked (i.e. last doc) didn't over size, move the good ones
+                    if (count != container.size()) {
+                        toCompress.push_back(BsonQ());
+                        auto end = container.begin();
+                        std::advance(end, count);
+                        std::move(container.begin(), end, toCompress.back().begin());
+                        //The container shouldn't be drained if we are breaking
+                        assert(container.size());
+                    }
+                    break;
+                }
+                //If the whole container is good to move, queue it all
+                toCompress.emplace_back(std::move(container));
+                localHolder.pop_front();
+
+            }
+
+            //Return any elements to the object's queue, we don't check to deque again
+            //This thread already has done so once
+            //First calc the size
+            size_t plusSize{};
+            for (const auto& q: localHolder)
+                for (const auto& doc: q)
+                    plusSize += doc.objsize();
+            lock.lock();
+            _size += plusSize;
+            while (localHolder.size()) {
+                _queue.emplace_back(localHolder.back());
+                localHolder.pop_back();
+            }
+            lock.release();
+
+            //Write the file to disk
+            mongo::BufBuilder raw(size);
+            for (const auto& vec: toCompress)
+                for (const auto& doc: vec)
+                    raw.appendBuf(doc.objdata(), doc.objsize());
+
+            std::ofstream diskQueue(owner()->workPath() + "chunk" +
+                    this->settings().chunkUB.toString() + fileCountName + ".mls1b");
+
+            std::string compressed;
+            //TODO: Consider moving to RawCompress and keeping a static buffer
+            uint64_t diskSize = snappy::Compress(raw.buf(), raw.len(), &compressed);
+            //Structure: Reserve the first byte, format byte, size uint64, payload
+            diskQueue << char(0) << static_cast<char>(Compression::snappy) << diskSize << compressed;
+        }
+    } //namespace dispatch
 }  //namespace loader

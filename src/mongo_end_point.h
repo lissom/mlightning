@@ -70,8 +70,8 @@ namespace tools {
             /**
              * @return the connection string to this end point
              */
-            const std::string& connection() {
-                return _connStr;
+            std::string connection() const {
+                return _connStr.toString();
             }
 
             /**
@@ -237,7 +237,7 @@ namespace tools {
                     MongoEndPointPtr>;
 
             MongoEndPointHolder(const MongoEndPointSettings &settings, const MongoCluster& mCluster) :
-                    _started( false)
+                    _started( false), _directLoad(settings.directLoad)
             {
                 if (settings.directLoad) {
                     for (auto& shard : mCluster.shards())
@@ -257,7 +257,6 @@ namespace tools {
                     std::cerr << "No end points were created\nExiting" << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                //Must start at _emp.begin() or the case of size() == 1 will fail;
                 _cycleItr = _epm.begin();
             }
 
@@ -266,6 +265,7 @@ namespace tools {
              * in the mongoS case)
              */
             MongoEndPoint* const at(const tools::mtools::MongoCluster::ShardName& shard) {
+                assert(_directLoad);
                 return _epm.at(shard).get();
             }
 
@@ -273,10 +273,11 @@ namespace tools {
              * Hand out end points in a round robin, use for mongoS
              */
             MongoEndPoint* const getMongoSCycle() {
+                assert(!_directLoad);
                 tools::MutexLockGuard lock(_cycleMutex);
-                //This assumes _cycleItr is initialized to begin()
                 ++_cycleItr;
-                if (_cycleItr == _epm.end()) _cycleItr = _epm.begin();
+                if (_cycleItr == _epm.end())
+                    _cycleItr = _epm.begin();
                 return _cycleItr->second.get();
             }
 
@@ -305,11 +306,16 @@ namespace tools {
                     ep.second->gracefulShutdownJoin();
             }
 
+            const bool directLoad() const {
+                return _directLoad;
+            }
+
         private:
             tools::Mutex _cycleMutex;
             typename MongoEndPointMap::iterator _cycleItr;
             MongoEndPointMap _epm;
             bool _started;
+            bool _directLoad;
         };
     }  //namespace mtools
 }  //namespace tools

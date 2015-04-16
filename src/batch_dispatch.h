@@ -39,6 +39,7 @@ namespace loader {
                 ChunkDispatcher* owner;
                 EndPointHolder* eph;
                 Bson chunkUB;
+                size_t maxSize;
             };
 
             ChunkDispatchInterface(Settings settings);
@@ -48,22 +49,23 @@ namespace loader {
             /**
              * Sends data to the docbuilder from the simple queue
              */
-            virtual void push(BsonV* q) = 0;
+            virtual void push(BsonV* q) { assert(false); }
 
             /**
              * Sends data to the docbuilder from the simple queue
              */
-            virtual void pushSort(BsonPairDeque* q) = 0;
+            virtual void pushQ(BsonQ* q) { assert(false); }
 
             /**
-             * Called after any new input is over
+             * Sends data to the docbuilder from the simple queue
              */
-            virtual void prep() = 0;
+            virtual void pushSort(BsonPairDeque* q) { assert(false); }
 
             /**
-             * Completely queues the queue into the end points
+             * This function is NOT thread safe
+             * Called once when all input is over
              */
-            virtual void doLoad() = 0;
+            virtual void finalize() = 0;
 
             /**
              * @return the end point the derived class should send to
@@ -281,17 +283,10 @@ namespace loader {
                 assert(q->empty());
             }
 
-            void pushSort(BsonPairDeque* q) {
-                assert(false);
-            }
-
             /*
              * This OpAgg does nothing else
              */
-            void prep() {
-            }
-
-            void doLoad() {
+            void finalize() {
             }
 
             static ChunkDispatchPointer create(ChunkDispatcher* owner, EndPointHolder* eph, Bson chunkUB)
@@ -312,21 +307,13 @@ namespace loader {
             {
             }
 
-            void push(BsonV* q) {
-                assert(false);
-            }
-
             void pushSort(BsonPairDeque* q) {
                 //TODO: see if pre sorting is faster
                 _queue.moveIn(q);
                 q->clear();
             }
 
-            void prep() {
-                _queue.sort(Compare(tools::BsonCompare(owner()->sortIndex())));
-            }
-
-            void doLoad();
+            void finalize();
 
             static ChunkDispatchPointer create(ChunkDispatcher* owner, EndPointHolder* eph, Bson chunkUB)
             {
@@ -342,52 +329,52 @@ namespace loader {
         };
 
         //TODO: DiskQueue OpAgg, cycle sort?
-        class DiskQueueDispatch : public ChunkDispatchInterface {
+        class DiskQueueBoundedFileDispatch : public ChunkDispatchInterface {
+        private:
+            using Queue = std::deque<BsonQ>;
         public:
-            DiskQueueDispatch(Settings settings) :
+            DiskQueueBoundedFileDispatch(Settings settings) :
                     ChunkDispatchInterface(std::move(settings))
             {
-                assert(false);
-                diskQueue.open(owner()->workPath() + "chunk" + this->settings().chunkUB.toString()
-                    + ".bson");
             }
 
-            void push(BsonV* q) {
-                _holder.push(std::move(*q));
-                owner()->queueTask([this] {this->spill();});
+            void pushQ(BsonQ * q) {
+                //Get the size of the
+                size_t newSize;
+                for (auto&& doc : *q) {
+                  newSize += doc.objsize();
+                }
+                tools::MutexUniqueLock lock(_mutex);
+                _queue.emplace_back(std::move(*q));
+                _size += newSize;
+                if (_size > settings().maxSize) {
+                  //The last add just blew through the size limit
+                  lock.release();
+                  spill();
+                }
             }
 
-            void pushSort(BsonPairDeque* q) {
-                assert(false);
-            }
-
-            void prep() {
-                //needs to work
-                assert(false);
-            }
-
-            void doLoad() {
-                //needs to work
-                assert(false);
+            void finalize() {
+                while(_size)
+                    spill();
             }
 
             static ChunkDispatchPointer create(ChunkDispatcher* owner, EndPointHolder* eph, Bson chunkUB)
             {
-                return ChunkDispatchPointer(new DiskQueueDispatch(Settings {owner, eph, chunkUB}));
+                return ChunkDispatchPointer(new DiskQueueBoundedFileDispatch(Settings {owner, eph, chunkUB}));
             }
 
         protected:
-            void spill() {
-                BsonV save;
-                while (_holder.pop(save)) {
 
-                }
-
-            }
+            //Dump the max chunk size to disk
+            void spill();
 
         private:
-            tools::ConcurrentQueue<BsonV> _holder;
-            std::fstream diskQueue;
+            tools::Mutex _mutex;
+            Queue _queue;
+            size_t _fileCount{};
+            size_t _size{};
+            static const bool factoryRegisterCreator;
         };
 
     }

@@ -5,22 +5,36 @@ ML_PATH=/home/charlie/git/mlightning/Debug/
 MONGO1=mongodb://127.0.0.1:27017
 MONGO2=mongodb://127.0.0.1:27017
 DATA_DIR=/home/charlie/serialshort/
-DIRECT=1
+DIRECT_IN=1
+DIRECT_OUT=1
+DIRECT_FINAL_IN=0
+DIRECT_FINAL_OUT=0
 echo ***Importing Data
-${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct 1 --output.db import --output.coll original --loadPath ${DATA_DIR} --dropDb 1
+runtest() {
+    "$@"
+    local status=$?
+    if [ $status -ne 0 ]; then
+        echo "error with mlightning test" >&2
+	exit $status
+    fi
+}
+goto end
+runtest ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct ${DIRECT_OUT} --output.db import --output.coll original --loadPath ${DATA_DIR} --dropDb 1
 echo .
 echo .
 echo ***Changing shard key
-${ML_PATH}mlightning ${OPTIONS} --shardKey '{"org":"hashed"}' --output.uri ${MONGO2} --output.writeConcern 1 --output.direct 1 --output.db trans --output.coll trans --input.uri ${MONGO1} --input.db import --input.coll original --dropDb 1
+runtest ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"org":"hashed"}' --output.uri ${MONGO2} --output.writeConcern 1 --output.direct ${DIRECT_OUT} --output.db trans --output.coll trans --input.uri ${MONGO1} --input.db import --input.coll original --input.direct ${DIRECT_IN} --dropDb 1
 echo .
 echo .
 echo ***Reverting back to original shard key
 #Direct isn't used here so routing is verified too
-${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct 0 --output.db mirror --output.coll mirror --input.uri ${MONGO2} --input.db trans --input.coll trans --dropDb 1
+runtest ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct ${DIRECT_FINAL_OUT} --output.db mirror --output.coll mirror --input.uri ${MONGO2} --input.db trans --input.coll trans --input.direct ${DIRECT_FINAL_IN} --dropDb 1
 echo .
 echo .
 echo ***Verifing
-mongo --nodb --norc << EOF
+echo The verify is only valid if all operations have taken place on the same cluster
+:end
+runtest mongo --nodb --norc << EOF
 var mongos=new Mongo()
 var shardHost=mongos.getDB("config").getCollection("shards").findOne().host.toString()
 print(shardHost)
@@ -30,7 +44,7 @@ var statsimport=shard.getDB("import").getCollection("original").stats()
 var statsmirror=shard.getDB("mirror").getCollection("mirror").stats()
 if(statsimport.count < 1) {
     print("No documents to test on: " + shard)
-    quit(2)
+    quit(1)
 }
 //In theory this shouldn't be an issue if anything other than w:0 is used for the final write
 if (statsimport.count != statsmirror.count) {
@@ -54,8 +68,12 @@ printjson(md5import)
 printjson(md5mirror)
 if (md5import.md5 != md5mirror.md5) {
     print("MD5 check failed")
+    if (md5import.numCollections != md5mirror.numCollections)
+	print("Collection size for the databases being hashed aren't the same, is something else running?")
     quit(1)
 }
 print("SUCCESS")
+//quit() prevents this from being saved in the history
+quit(0)
 EOF
 

@@ -23,8 +23,7 @@ namespace tools {
 
         const mongo::BSONObj MongoCluster::CHUNK_SORT = BSON("max" << 1);
 
-        MongoCluster::MongoCluster(const std::string& connStr) :
-                _sharded(false)
+        MongoCluster::MongoCluster(const std::string& connStr)
         {
             _connStr = mongo::parseConnectionOrThrow(connStr);
             _dbConn = mongo::connectOrThrow(_connStr);
@@ -65,7 +64,7 @@ namespace tools {
                 }
                 idx->insertUnordered(obj.getField("max").Obj().getOwned(), linkmap->find(mappingValue));
             }
-            //Sort chunks here.
+            //Sort chunks here
             if (idx) idx->finalize();
         }
 
@@ -106,7 +105,7 @@ namespace tools {
                                               obj.getField("max").Obj().getOwned(),
                                               obj.getField("min").Obj().getOwned()));
             }
-            //Sort chunks here.
+            //Sort tags here
             if (idx) idx->finalize();
         }
 
@@ -114,7 +113,9 @@ namespace tools {
             clear();
             //TODO: Add a sanity check this is actually a mongoS/ config server
             //Load shards && tag map
-            mongo::Cursor cur = _dbConn->query("config.shards", mongo::BSONObj());
+            auto cur = _dbConn->query("config.shards", mongo::BSONObj());
+            if (!cur->more())
+                throw std::logic_error("No shards in the config.shards namespace");
             while (cur->more()) {
                 auto obj = cur->next();
                 const std::string shard = obj.getStringField("_id");
@@ -160,8 +161,9 @@ namespace tools {
             while (cur->more()) {
                 auto obj = cur->next();
                 const NameSpace currNs = obj.getStringField("_id");
-                _colls.emplace(std::make_pair(currNs, MetaNameSpace(currNs, obj.getBoolField("dropped"),
-                               obj.getObjectField("key").getOwned(), obj.getBoolField("unique"))));
+                _colls.emplace(std::make_pair(currNs, MetaNameSpace(currNs,
+                        obj.getBoolField("dropped"), obj.getObjectField("key").getOwned(),
+                        obj.getBoolField("unique"))));
             }
 
         }
@@ -192,7 +194,7 @@ namespace tools {
             auto update = BSON("$set" << BSON("stopped" << true));
             _dbConn->update("config.settings", query, update, true);
             std::string lastError = _dbConn->getLastError();
-            if (lastError.empty())
+            if (!lastError.empty())
                 std::cerr << "Failed to stop balancer. Error: " << lastError << std::endl;
         }
 
@@ -282,35 +284,74 @@ namespace tools {
             } while (!done);
         }
 
-        bool MongoCluster::enableSharding(const DatabaseName &dbName, mongo::BSONObj* info) {
+        bool MongoCluster::enableSharding(const DatabaseName& dbName, mongo::BSONObj& info) {
             auto cmd = BSON("enableSharding" << dbName);
-            return _dbConn->runCommand("admin", cmd, *info);
+            return _dbConn->runCommand("admin", cmd, info);
         }
 
-        bool MongoCluster::shardCollection(const NameSpace &ns, const mongo::BSONObj &shardKey,
-                                                   bool unique, mongo::BSONObj *info) {
+        bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
+                                                   bool unique, mongo::BSONObj& info) {
             mongo::BSONObjBuilder bob;
             bob.append("shardCollection", ns)
                 .append("key", shardKey);
             if (unique)
                 bob.append("unique", true);
-            return _dbConn->runCommand("admin", bob.obj(), *info);
+            return _dbConn->runCommand("admin", bob.obj(), info);
         }
 
-        bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj &shardKey,
-                                                   const bool unique, const int chunks,
-                                                   mongo::BSONObj *info) {
+        bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
+                                                   const bool unique, const int initialChunks,
+                                                   mongo::BSONObj& info) {
             //ensure the key is a hashed shard key
             std::string key = shardKey.toString();
-            auto pos = key.find(":");
-            assert(key.find("hashed", pos) != std::string::npos);
+            (void) key;
+            assert(key.find("hashed", key.find(":")) != std::string::npos);
             mongo::BSONObjBuilder bob;
             bob.append("shardCollection", ns)
                 .append("key", shardKey)
-                .append("numInitialChunks", chunks);
+                .append("numInitialChunks", initialChunks);
             if (unique)
                 bob.append("unique", true);
-            return _dbConn->runCommand("admin", bob.obj(), *info);
+            return _dbConn->runCommand("admin", bob.obj(), info);
+        }
+
+        bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
+                const bool unique, const int initialChunks, mongo::BSONObj& info,
+                const bool synthetic) {
+            if (!synthetic)
+                return shardCollection(ns, shardKey, unique, initialChunks, info);
+            std::string key = shardKey.toString();
+            (void) key;
+            assert(key.find("hashed", key.find(":")) != std::string::npos);
+            if (initialChunks <= 0)
+                throw std::logic_error("Cannot set initial chunks less than 1 for virt sharding");
+            if (_colls.end() != _colls.find(ns))
+                throw std::logic_error("Namespace already exists, cannot virt shard it");
+            //insert the database if it doesn't exist
+            std::string dbName = key.substr(0, key.find('.'));
+            auto shardItr = _shards.begin();
+            if (_dbs.find(dbName) == _dbs.end())
+                _dbs.insert(std::make_pair(dbName, MetaDatabase(dbName, true, shardItr->first, true)));
+            //insert the collection
+            _colls.insert(std::make_pair(ns, MetaNameSpace(ns, false, shardKey, unique, true)));
+            //insert the shards
+            //long long is used in the driver/server code.  int64_t is ambiguous
+            ShardBsonIndex* shardKeyMap = &_nsChunks.emplace(ns, ShardBsonIndex(
+                    tools::BsonCompare(shardKey))).first->second;
+            std::string shardKeyName = shardKey.firstElement().fieldName();
+            shardKeyMap->insertUnordered(std::make_pair(BSON(shardKeyName << mongo::MaxKey), shardItr));
+            if (initialChunks > 1) {
+                //As max signed long is only half the range, double the chunk size for one "step"
+                long long chunkSize = std::numeric_limits<long long>::max() / initialChunks * 2;
+                long long currentUB = std::numeric_limits<long long>::max() - chunkSize;
+                for (int64_t count = initialChunks - 1; count; --count, ++shardItr, currentUB -= chunkSize) {
+                    if (shardItr == _shards.end())
+                        shardItr = _shards.begin();
+                    shardKeyMap->insertUnordered(std::make_pair(BSON(shardKeyName << currentUB), shardItr));
+                }
+            }
+            shardKeyMap->finalize();
+            return true;
         }
 
         void MongoCluster::flushRouterConfigs() {

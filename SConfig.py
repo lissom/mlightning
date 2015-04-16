@@ -11,7 +11,7 @@ CXX_FLAGS = '-std=c++11 -O0 -g3 -p -Wall -c -fmessage-length=0'
 COMPILER_NAME = 'g++'
 PROJECT_NAME = 'mlightning'
 INCLUDES = []
-LIBRARIES = ['mongoclient', 'boost_program_options', 'boost_system', 'boost_regex', 'boost_thread', 'boost_chrono', 'boost_filesystem']
+LIBRARIES = ['mongoclient', 'boost_program_options', 'boost_system', 'boost_regex', 'boost_thread', 'boost_chrono', 'boost_filesystem', 'snappy']
 LIBRARY_PATHS = []
 SOURCE_PATHS = {'src':[]}
 PRE_BUILD_COMMAND = ''

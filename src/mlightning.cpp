@@ -35,7 +35,7 @@
  */
 int main(int argc, char* argv[]) {
     int returnValue = EXIT_SUCCESS;
-    tools::SimpleTimer<> totalTimer;
+
     //C++ Driver
     mongo::client::initialize();
 
@@ -65,12 +65,6 @@ int main(int argc, char* argv[]) {
         std::cerr << "Unable to initialize: " << e.what() << std::endl;
         return EXIT_FAILURE;
     }
-
-    totalTimer.stop();
-
-    long totalSeconds = totalTimer.seconds();
-
-    std::cout << "\nTotal time: " << totalSeconds / 60 << "m" << totalSeconds % 60 << "s" << std::endl;
 
     return returnValue;
 }

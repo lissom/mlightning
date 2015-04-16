@@ -22,8 +22,12 @@ namespace loader {
                 "direct", &DirectQueue::create);
         const bool RAMQueue::factoryRegisterCreator = ChunkBatchFactory::registerCreator(
                 "ram", &RAMQueue::create);
+        const bool DiskQueue::factoryRegisterCreator = ChunkBatchFactory::registerCreator(
+                "ml1", &RAMQueue::create);
 
-        ChunkBatcherInterface::ChunkBatcherInterface(InputNameSpaceContainer* owner, Bson UBIndex) :
+
+
+        ChunkBatcherInterface::ChunkBatcherInterface(InputChunkBatcherHolder* owner, Bson UBIndex) :
                 _owner(owner),
                 _queueSize(_owner->settings().queueSize),
                 _dispatcher(_owner->getDispatchForChunk(UBIndex)),
@@ -32,7 +36,7 @@ namespace loader {
 
         }
 
-        void InputNameSpaceContainer::init(const tools::mtools::MongoCluster::NameSpace& ns) {
+        void InputChunkBatcherHolder::init(const tools::mtools::MongoCluster::NameSpace& ns) {
             //shardChunkCounters keeps track of the number of chunk depth per shard
             //Assumes the chunks are in sorted order so that the queues are correct per shard
             std::unordered_map<tools::mtools::MongoCluster::ShardName, size_t> shardChunkCounters;
@@ -51,9 +55,9 @@ namespace loader {
             }
         }
 
-        void InputNameSpaceContainer::clean() {
+        void InputChunkBatcherHolder::cleanUpAllQueues() {
             for (auto& i : _inputPlan)
-                i.second->clean();
+                i.second->cleanUpQueue();
         }
     }  //namespace queue
 }  //namespace loader

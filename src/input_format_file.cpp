@@ -13,17 +13,17 @@
  *    limitations under the License.
  */
 
-#include "input_format_file.h"
 
 #include <assert.h>
+#include "input_format_file.h"
 #include <iostream>
-#include "input_types.h"
+#include "loader_defs.h"
 
 namespace loader {
 
-    const bool InputFormatJson::_registerFactory = InputFormatFactory::registerCreator(JSON_INPUT,
+    const bool InputFormatJson::_registerFactory = InputFormatFactory::registerCreator(INPUT_JSON,
                                                                            &InputFormatJson::create);
-    const bool InputFormatBson::_registerFactory = InputFormatFactory::registerCreator(BSON_INPUT,
+    const bool InputFormatBson::_registerFactory = InputFormatFactory::registerCreator(INPUT_BSON,
                                                                                &InputFormatBson::create);
 
     void InputFormatJson::reset(tools::LocSegment segment)

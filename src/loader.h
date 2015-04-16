@@ -15,20 +15,20 @@
 
 #pragma once
 
-#include <fstream>
-#include <list>
-#include <memory>
-#include <utility>
-#include <vector>
 #include "bson_tools.h"
 #include "concurrent_container.h"
 #include "input_processor.h"
+#include <fstream>
+#include <list>
 #include "loader_defs.h"
+#include <memory>
 #include "mongo_cxxdriver.h"
 #include "mongo_end_point.h"
 #include "batch_dispatch.h"
 #include "tools.h"
 #include "threading.h"
+#include <utility>
+#include <vector>
 
 namespace loader {
 
@@ -87,6 +87,7 @@ namespace loader {
             std::string loadPath;
             std::string fileRegex;
             std::string inputType;
+            std::string outputType;
             std::string workPath;
             std::string loadQueueJson;
             mongo::BSONObj loadQueueBson;
@@ -101,7 +102,7 @@ namespace loader {
             size_t chunksPerShard;
             bool shardKeyUnique;
             std::string shardKeyJson;
-            mongo::BSONObj shardKeysBson;
+            mongo::BSONObj shardKeyBson;
             FieldKeys shardKeyFields;
             bool dropDb;
             bool dropColl;
@@ -110,7 +111,7 @@ namespace loader {
 
             ClusterSettings input;
             ClusterSettings output;
-            docbuilder::InputNameSpaceContainer::Settings batcherSettings;
+            docbuilder::InputChunkBatcherHolder::Settings batcherSettings;
             dispatch::ChunkDispatcher::Settings dispatchSettings;
 
             /**
@@ -118,6 +119,7 @@ namespace loader {
              * Needs to be called once all the user input is read in
              */
             void process();
+            void parseShardKey();
 
             static std::string inputTypesPretty() {
                 return InputFormatFactory::getKeysPretty();
@@ -140,6 +142,9 @@ namespace loader {
         };
 
         explicit Loader(Settings settings);
+        ~Loader() {
+            if (_disableCollectionBalancing) _mCluster.enableBalancing(_settings.output.ns());
+        }
 
         /**
          * Gets stats
@@ -178,7 +183,7 @@ namespace loader {
         /**
          * Returns the settings for loader queues.
          */
-        const docbuilder::InputNameSpaceContainer::Settings& queueSettings() const {
+        const docbuilder::InputChunkBatcherHolder::Settings& queueSettings() const {
             return _settings.batcherSettings;
         }
 
@@ -190,13 +195,20 @@ namespace loader {
         tools::mtools::MongoCluster _mCluster;
         std::unique_ptr<EndPointHolder> _endPoints;
         std::unique_ptr<dispatch::ChunkDispatcher> _chunkDispatch;
+        tools::SimpleTimer<> _timerSetup;
+        tools::SimpleTimer<> _timerRead;
 
         size_t _ramMax;
-        size_t _threadsMax;
-        std::atomic<unsigned long long> _writeOps;
+        std::atomic<unsigned long long> _writeOps{};
         dispatch::ChunkDispatcher::OrderedWaterFall _wf;
         tools::Mutex _prepSetMutex;
+        bool _disableCollectionBalancing = false;
 
+        /*
+         * Run routines
+         */
+        void dump();
+        void load();
 
         bool enabledEndPoints() {
             return _endPoints->isRunning();
@@ -212,7 +224,7 @@ namespace loader {
          * 6)Ensure the balancer is stopped
          * 7)Do splits (create hashed collection at this point)
          */
-        void setupLoad();
+        void setupOutputCluster();
 
         /**
          * Start end points up
@@ -224,13 +236,13 @@ namespace loader {
          * completed reading in all the files.
          * Thread safe
          */
-        void threadPrepQueue();
+        void threadFinalizeQueue();
 
         /**
          * Get the next chunk to notify of input file completion in shard chunk order.
          * Thread safe
          */
-        dispatch::ChunkDispatchInterface* getNextPrep();
+        dispatch::ChunkDispatchInterface* getNextFinalize();
 
         /**
          * Resolves a connection for a shard
