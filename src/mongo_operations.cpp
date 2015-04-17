@@ -100,6 +100,7 @@ namespace tools {
                     */
             //Exhaust option is added because we are going to get all results immediately.
             bool noErrors = true;
+            //std::cout << _ns << ":" << _query << std::endl;
             auto c = conn->query(_ns, _query, 0, 0, _fieldsToReturn,
                     _queryOptions);//_queryOptions | mongo::QueryOption_Exhaust); for some reason exhaust generates errors, need to investigate, not sure it's fixable (driver seems to not use exhaust either)
             while (c->more()) {

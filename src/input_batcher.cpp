@@ -23,7 +23,7 @@ namespace loader {
         const bool RAMQueue::factoryRegisterCreator = ChunkBatchFactory::registerCreator(
                 "ram", &RAMQueue::create);
         const bool DiskQueue::factoryRegisterCreator = ChunkBatchFactory::registerCreator(
-                "ml1", &RAMQueue::create);
+                "ml1", &DiskQueue::create);
 
 
 
@@ -53,6 +53,7 @@ namespace loader {
                                         ->back(), this, std::get<0>(iCm));
                 }
             }
+            assert(_inputPlan.size());
         }
 
         void InputChunkBatcherHolder::cleanUpAllQueues() {

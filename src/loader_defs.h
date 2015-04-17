@@ -26,7 +26,14 @@ namespace loader {
     using BsonPairDeque = std::deque<std::pair<mongo::BSONObj, mongo::BSONObj>>;
     using LoadQueues = std::vector<std::string>;
 
-    enum class Compression : char { none = 0, snappy = 1 };
+    /*
+     * These enums are written to the file system, the value/ type cannot be safely changed
+     */
+    enum class Compression : int8_t { none = 0, snappy = 1 };
+    enum class FileChunkHeader : int8_t { data = 0 };
+    /*
+     * end file system enums
+     */
 
     /*
      * Output Types

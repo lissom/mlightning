@@ -39,7 +39,6 @@ namespace loader {
                 ChunkDispatcher* owner;
                 EndPointHolder* eph;
                 Bson chunkUB;
-                size_t maxSize;
             };
 
             ChunkDispatchInterface(Settings settings);
@@ -237,6 +236,11 @@ namespace loader {
                 _tp.queue(func);
             }
 
+            size_t diskQueueMaxSize() {
+                //64 megs is the max for buff builder, so without writing another buffer:
+                return 64 * 1024 * 1024;
+            }
+
         private:
             void init();
 
@@ -340,17 +344,16 @@ namespace loader {
 
             void pushQ(BsonQ * q) {
                 //Get the size of the
-                size_t newSize;
-                for (auto&& doc : *q) {
+                size_t newSize{};
+                for (auto&& doc : *q)
                   newSize += doc.objsize();
-                }
                 tools::MutexUniqueLock lock(_mutex);
                 _queue.emplace_back(std::move(*q));
                 _size += newSize;
-                if (_size > settings().maxSize) {
-                  //The last add just blew through the size limit
-                  lock.release();
-                  spill();
+                if (_size > owner()->diskQueueMaxSize()) {
+                    //The last add just blew through the size limit
+                    lock.unlock();
+                    spill();
                 }
             }
 
@@ -370,6 +373,7 @@ namespace loader {
             void spill();
 
         private:
+            static const int FILENAME_FILECOUNT_MIN_DIGITS = 4;
             tools::Mutex _mutex;
             Queue _queue;
             size_t _fileCount{};

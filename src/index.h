@@ -217,6 +217,8 @@ namespace tools {
          */
         Value& upperBound(const Key& key) {
             auto i = std::upper_bound(begin(), end(), key, _compare);
+            //Should assert as long as we are returning a ref
+            assert(i != end());
             return i->second;
         }
 
@@ -230,6 +232,10 @@ namespace tools {
 
         const CompareHolder& compare() {
             return _compare;
+        }
+
+        Container& unsafeAccess() {
+            return _container;
         }
 
     private:

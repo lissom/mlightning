@@ -302,6 +302,8 @@ namespace tools {
         bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
                                                    const bool unique, const int initialChunks,
                                                    mongo::BSONObj& info) {
+            assert(!ns.empty());
+            assert(!shardKey.isEmpty());
             //ensure the key is a hashed shard key
             std::string key = shardKey.toString();
             (void) key;
@@ -320,13 +322,15 @@ namespace tools {
                 const bool synthetic) {
             if (!synthetic)
                 return shardCollection(ns, shardKey, unique, initialChunks, info);
+            assert(!ns.empty());
+            assert(!shardKey.isEmpty());
             std::string key = shardKey.toString();
             (void) key;
             assert(key.find("hashed", key.find(":")) != std::string::npos);
             if (initialChunks <= 0)
-                throw std::logic_error("Cannot set initial chunks less than 1 for virt sharding");
+                throw std::logic_error("Cannot set initial chunks less than 1 for synthetic sharding");
             if (_colls.end() != _colls.find(ns))
-                throw std::logic_error("Namespace already exists, cannot virt shard it");
+                throw std::logic_error("Namespace already exists, cannot synthetic shard it");
             //insert the database if it doesn't exist
             std::string dbName = key.substr(0, key.find('.'));
             auto shardItr = _shards.begin();
@@ -339,7 +343,7 @@ namespace tools {
             ShardBsonIndex* shardKeyMap = &_nsChunks.emplace(ns, ShardBsonIndex(
                     tools::BsonCompare(shardKey))).first->second;
             std::string shardKeyName = shardKey.firstElement().fieldName();
-            shardKeyMap->insertUnordered(std::make_pair(BSON(shardKeyName << mongo::MaxKey), shardItr));
+            shardKeyMap->insertUnordered(std::make_pair(BSON(shardKeyName << BSON("$maxkey" << 1)), shardItr));
             if (initialChunks > 1) {
                 //As max signed long is only half the range, double the chunk size for one "step"
                 long long chunkSize = std::numeric_limits<long long>::max() / initialChunks * 2;

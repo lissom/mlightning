@@ -46,6 +46,13 @@ namespace loader {
             }
         }
 
+        if (!workPath.empty()) {
+            boost::filesystem::path work(workPath);
+            workPath = work.make_preferred().native();
+            if (workPath.back() != boost::filesystem::path::preferred_separator)
+                workPath += boost::filesystem::path::preferred_separator;
+        }
+
         if (outputType == OUTPUT_MONGO)
             try {
                 output.validate();
@@ -57,10 +64,11 @@ namespace loader {
         else {
             //For all file output formats use hashed _id if the user hasn't given a different key
             sharded = true;
+            output.database = "mlightning";
+            output.collection = "mlightning_synth";
             loadQueueJson = OUTPUT_FILE;
             if (shardKeyJson.empty())
                 shardKeyJson = R"({ "_id" : "hashed" })";
-            std::cout << "File sharding key: " << shardKeyJson << std::endl;
             //Create queues equal to the number of threads
             loadQueueJson = R"({"ml1": )" + std::to_string(threads) + R"(})";
             if (outputType == OUTPUT_FILE) {
@@ -298,13 +306,13 @@ namespace loader {
         //Create a single fake shard
         _mCluster.shards().insert(std::make_pair("mlDummy", "mlDummy"));
         mongo::BSONObj info;
-        //Create the splits to setup the file write
-        _mCluster.shardCollection("mlightning.mlightning_loader", _settings.shardKeyBson, true,
+        //Create the splits to setup the file write by creating a synthetic output namespace
+        _mCluster.shardCollection(_settings.output.ns(), _settings.shardKeyBson, true,
                 _settings.threads, info, true);
         //Setup the file write
         _chunkDispatch.reset(new dispatch::ChunkDispatcher(_settings.dispatchSettings,
                                                                    cluster(),
-                                                                   _endPoints.get(),
+                                                                   nullptr,
                                                                    _settings.output.ns()));
         _timerSetup.stop();
         _timerRead.start();

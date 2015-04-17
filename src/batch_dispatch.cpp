@@ -13,8 +13,8 @@
  *    limitations under the License.
  */
 
-#include <snappy.h>
 #include "batch_dispatch.h"
+#include "stream_writer.h"
 
 namespace loader {
     namespace dispatch {
@@ -60,6 +60,7 @@ namespace loader {
         }
 
         void ChunkDispatcher::init() {
+            assert(!_ns.empty());
             //shardChunkCounters keeps track of the number of chunk depth per shard
             //Assumes the chunks are in sorted order so that the queues are correct per shard
             std::unordered_map<tools::mtools::MongoCluster::ShardName, size_t> shardChunkCounters;
@@ -68,6 +69,7 @@ namespace loader {
                 size_t depth = ++(shardChunkCounters[std::get<1>(iCm)->first]);
                 _loadPlan.back() = ChunkDispatcherFactory::createObject(_settings.loadQueues->at(depth - 1), this, _eph, std::get<0>(iCm));
             }
+            assert(_loadPlan.size());
         }
 
         ChunkDispatcher::OrderedWaterFall ChunkDispatcher::getWaterFall() {
@@ -107,9 +109,7 @@ namespace loader {
         }
 
         void DiskQueueBoundedFileDispatch::spill() {
-            assert(settings().maxSize);
-            bool doBreak = false;
-            size_t size{};
+            assert(owner()->diskQueueMaxSize());
             Queue toCompress;
 
             //Grab the current buffer, will return extra at the end
@@ -117,33 +117,36 @@ namespace loader {
             Queue localHolder;
             localHolder.swap(_queue);
             _size = 0;
-            lock.release();
+            lock.unlock();
 
-
+            bool doBreak = false;
+            size_t bufferSize{};
             std::string fileCountName = std::to_string(_fileCount++);
-            if (fileCountName.size() < 4)
-                fileCountName.insert(0, "0", fileCountName.size());
+            if (fileCountName.size() < FILENAME_FILECOUNT_MIN_DIGITS)
+                fileCountName.insert(0, "0000", FILENAME_FILECOUNT_MIN_DIGITS - fileCountName.size());
             while (localHolder.size()) {
                 auto& container = localHolder.front();
                 size_t count{};
                 for (const auto& doc: container)
                 {
                     //If we have exceeded the max size, end the writes to disk
-                    size += doc.objsize();
-                    if (size > settings().maxSize) {
-                        size -= doc.objsize();
+                    bufferSize += doc.objsize();
+                    if (bufferSize > owner()->diskQueueMaxSize()) {
+                        bufferSize -= doc.objsize();
                         doBreak = true;
                         break;
                     }
-                    count ++;
+                    count++;
                 }
                 if (doBreak) {
-                    //If the first doc checked (i.e. last doc) didn't over size, move the good ones
-                    if (count != container.size()) {
-                        toCompress.push_back(BsonQ());
+                    //Break should not occur if the container can be consumed
+                    assert(count != container.size());
+                    if (count > 0) {
+                        toCompress.emplace_back(BsonQ(count));
                         auto end = container.begin();
                         std::advance(end, count);
                         std::move(container.begin(), end, toCompress.back().begin());
+                        container.erase(container.begin(),end);
                         //The container shouldn't be drained if we are breaking
                         assert(container.size());
                     }
@@ -152,7 +155,6 @@ namespace loader {
                 //If the whole container is good to move, queue it all
                 toCompress.emplace_back(std::move(container));
                 localHolder.pop_front();
-
             }
 
             //Return any elements to the object's queue, we don't check to deque again
@@ -168,22 +170,25 @@ namespace loader {
                 _queue.emplace_back(localHolder.back());
                 localHolder.pop_back();
             }
-            lock.release();
+            lock.unlock();
 
+            //If raw is moved to the object level only one file can be built at a time
+            mongo::BufBuilder raw(bufferSize);
             //Write the file to disk
-            mongo::BufBuilder raw(size);
             for (const auto& vec: toCompress)
-                for (const auto& doc: vec)
+                for (const auto& doc: vec) {
                     raw.appendBuf(doc.objdata(), doc.objsize());
+                }
 
-            std::ofstream diskQueue(owner()->workPath() + "chunk" +
-                    this->settings().chunkUB.toString() + fileCountName + ".mls1b");
-
-            std::string compressed;
-            //TODO: Consider moving to RawCompress and keeping a static buffer
-            uint64_t diskSize = snappy::Compress(raw.buf(), raw.len(), &compressed);
-            //Structure: Reserve the first byte, format byte, size uint64, payload
-            diskQueue << char(0) << static_cast<char>(Compression::snappy) << diskSize << compressed;
+            //std::string chunk = this->settings().chunkUB.toString();
+            //TODO: Add checking of chunk name to ensure that it is file system compliant
+            const std::string filepath = owner()->workPath() + "chunk"
+                     + fileCountName + ".mls1b";
+            std::ofstream diskQueue(filepath, std::ios::out | std::ios::trunc);
+            writeToStream(diskQueue, FileChunkHeader::data, 0, Compression::snappy, raw);
+            //Assumption: data is generally uniform, so the size should be, +10% overhead
+            //Otherwise there will be very large amount of unnecessary buffer hanging around/ many allocs
+            diskQueue.flush();
         }
     } //namespace dispatch
 }  //namespace loader

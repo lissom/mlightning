@@ -251,7 +251,7 @@ namespace loader {
 
             void push(DocumentBuilderInterface* stage) {
                 _bsonHolder.emplace_back(std::make_pair(stage->getIndex(), stage->getFinalDoc()));
-                if (_bsonHolder.size() > queueSize()) doPush();
+                if (_bsonHolder.size() >= queueSize()) doPush();
             }
 
             void cleanUpQueue() {
@@ -282,7 +282,7 @@ namespace loader {
 
             void push(DocumentBuilderInterface* stage) {
                 _bsonHolder.emplace_back(stage->getFinalDoc());
-                if (_bsonHolder.size() > queueSize()) doPush();
+                if (_bsonHolder.size() >= queueSize()) doPush();
             }
 
             void cleanUpQueue() {
@@ -291,7 +291,7 @@ namespace loader {
 
             static ChunkBatcherPointer create(InputChunkBatcherHolder* owner, Bson UBIndex)
             {
-                return ChunkBatcherPointer(new RAMQueue(owner, std::move(UBIndex)));
+                return ChunkBatcherPointer(new DiskQueue(owner, std::move(UBIndex)));
             }
 
         private:
