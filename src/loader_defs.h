@@ -49,6 +49,8 @@ namespace loader {
     const char INPUT_MONGO[] = "mongo";
     const char INPUT_JSON[] = "json";
     const char INPUT_BSON[] = "bson";
+    //covers all formats that mLightning creates
+    const char INPUT_MLTN[] = "mlgtn";
 }  //namespace loader
 
 

@@ -108,6 +108,7 @@ namespace loader {
                 send(&sendQueue);
         }
 
+        //TODO: Perf this with a snappy::sink hitting the fstream
         void DiskQueueBoundedFileDispatch::spill() {
             assert(owner()->diskQueueMaxSize());
             Queue toCompress;
@@ -123,7 +124,7 @@ namespace loader {
             size_t bufferSize{};
             std::string fileCountName = std::to_string(_fileCount++);
             if (fileCountName.size() < FILENAME_FILECOUNT_MIN_DIGITS)
-                fileCountName.insert(0, "0000", FILENAME_FILECOUNT_MIN_DIGITS - fileCountName.size());
+                fileCountName.insert(0, "000", FILENAME_FILECOUNT_MIN_DIGITS - fileCountName.size());
             while (localHolder.size()) {
                 auto& container = localHolder.front();
                 size_t count{};

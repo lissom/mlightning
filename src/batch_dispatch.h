@@ -373,6 +373,7 @@ namespace loader {
             void spill();
 
         private:
+            //If this variable is changed all insertions using it need to be changed too
             static const int FILENAME_FILECOUNT_MIN_DIGITS = 4;
             tools::Mutex _mutex;
             Queue _queue;
