@@ -181,9 +181,9 @@ namespace loader {
                     raw.appendBuf(doc.objdata(), doc.objsize());
                 }
 
-            //std::string chunk = this->settings().chunkUB.toString();
+            std::string chunk = this->settings().chunkUB.toString();
             //TODO: Add checking of chunk name to ensure that it is file system compliant
-            const std::string filepath = owner()->workPath() + "chunk"
+            const std::string filepath = owner()->workPath() + "chunk" + chunk
                      + fileCountName + ".mls1b";
             std::ofstream diskQueue(filepath, std::ios::out | std::ios::trunc);
             writeToStream(diskQueue, FileChunkHeader::data, 0, Compression::snappy, raw);
