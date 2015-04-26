@@ -140,7 +140,8 @@ namespace loader {
         catch (std::exception& e) {
             errormsg = e.what();
         }
-        if (vm.count("help") || !errormsg.empty()) {
+        //print help if asked for, there was an error, or no options were given
+        if (vm.count("help") || !errormsg.empty() || argc < 2) {
             cmdline.print(std::cout);
             if (!errormsg.empty()) std::cerr << "Unable to parse options: " + errormsg << std::endl;
             exit(EXIT_FAILURE);

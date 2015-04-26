@@ -19,14 +19,14 @@ namespace loader {
     /**
      * Compresses the data in buffer and writes it to the steam
      */
-    void writeToStream(std::ostream& out, const FileChunkHeader blockType,
-            const SequenceId sequenceId, const Compression formatType, const mongo::BufBuilder& data);
+    void writeToStream(std::ostream& out, const FileChunkType blockType,
+            const SequenceId sequenceId, const FileChunkFormat formatType, const mongo::BufBuilder& data);
 
     /**
      * Reads data from a stream into a data block.  The contents of data are destroyed
-     * Returns true if there is more data to read
+     * Returns the buffer size
      */
-    bool readFromStream(std::istream& in, FileChunkHeader* blockType, SequenceId* sequenceId,
+    size_t readFromStream(std::istream& in, FileChunkType* blockType, SequenceId* sequenceId,
             std::vector<char>* data);
 
 } /* namespace loader */

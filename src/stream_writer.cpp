@@ -9,51 +9,63 @@
 
 namespace loader {
 
-    void writeToStream(std::ostream& out, const FileChunkHeader blockType,
-            const SequenceId sequenceId, const Compression formatType, const mongo::BufBuilder& data) {
+    void metaToStream(std::ostream& out, const FileChunkType blockType,
+            const SequenceId sequenceId, const FileChunkFormat formatType, const uint64_t size) {
+        out << static_cast<std::underlying_type<FileChunkType>::type>(blockType)
+            << sequenceId
+            << static_cast<std::underlying_type<FileChunkFormat>::type>(formatType)
+            << size;
+    }
+
+    void metaFromStream(std::istream& in, FileChunkType* const blockType,
+                SequenceId* const sequenceId, FileChunkFormat* const formatType, uint64_t* const size) {
+        std::underlying_type<FileChunkType>::type fileChunkHeaderType;
+        std::underlying_type<FileChunkFormat>::type fileChunkFormatType;
+        in >> fileChunkHeaderType
+            >> *sequenceId
+            >> fileChunkFormatType
+            >> *size;
+        *blockType = static_cast<FileChunkType>(fileChunkHeaderType);
+        *formatType = static_cast<FileChunkFormat>(fileChunkFormatType);
+
+    }
+
+    void writeToStream(std::ostream& out, const FileChunkType blockType,
+            const SequenceId sequenceId, const FileChunkFormat formatType, const mongo::BufBuilder& data) {
         std::string compressed;
-        uint64_t size;
         switch(formatType) {
-        case Compression::none :
-            size = data.len();
-            out << static_cast<std::underlying_type<FileChunkHeader>::type>(blockType)
-                    << sequenceId << static_cast<std::underlying_type<Compression>::type>(formatType)
-                    << size;
+        case FileChunkFormat::none :
+            metaToStream(out, blockType, sequenceId, formatType, data.len());
             out.write(data.buf(), data.len());
             break;
-        case Compression::snappy :
+        case FileChunkFormat::snappy :
             if (snappy::Compress(data.buf(), data.len(), &compressed) >
                 size_t(data.len() / 9 * 10)) {
-                writeToStream(out, blockType, sequenceId, Compression::none, data);
+                writeToStream(out, blockType, sequenceId, FileChunkFormat::none, data);
                 break;
             }
-            size = compressed.size();
-            out << int8_t(blockType) << sequenceId << int8_t(formatType) << size
-                    << compressed;
+            metaToStream(out, blockType, sequenceId, formatType, compressed.size());
+            out.write(&compressed[0], compressed.size());
             break;
         default :
             throw std::range_error("Invalid compression type in writeToStream");
         }
     }
 
-    bool readFromStream(std::istream& in, FileChunkHeader* blockType, SequenceId* sequenceId,
+    size_t readFromStream(std::istream& in, FileChunkType* blockType, SequenceId* sequenceId,
             std::vector<char>* data) {
-        std::underlying_type<FileChunkHeader>::type fileChunkHeader;
-        std::underlying_type<Compression>::type compressionType;
-        in >> fileChunkHeader;
-        *blockType = static_cast<FileChunkHeader>(fileChunkHeader);
-        in >> *sequenceId;
-        in >> compressionType;
         uint64_t size;
-        in >> size;
-        switch (static_cast<Compression>(compressionType)) {
-        case Compression::none :
+        FileChunkFormat compressionType;
+        metaFromStream(in, blockType, sequenceId, &compressionType, &size);
+        std::vector<char> raw;
+        switch (static_cast<FileChunkFormat>(compressionType)) {
+        case FileChunkFormat::none :
             data->reserve(size);
             in.read(&(*data)[0], size);
-            break;
-        case Compression::snappy :
-            std::vector<char> raw;
+            return size;
+        case FileChunkFormat::snappy :
             raw.reserve(size);
+            in.read(&raw[0], size);
             if(!snappy::IsValidCompressedBuffer(&raw[0],size))
                 throw std::logic_error("Invalid compression buffer with snappy");
             size_t uncompressdSize;
@@ -61,9 +73,9 @@ namespace loader {
             data->reserve(uncompressdSize);
             if(!snappy::RawUncompress(&raw[0], size, &(*data)[0]))
                 throw std::logic_error("Unable to decompress block with snappy");
-            break;
+            return uncompressdSize;
+        default : throw std::range_error("readFromStream: Unknown compression type");
         }
-        return !in.eof();
     }
 
 } /* namespace loader */

@@ -186,7 +186,7 @@ namespace loader {
             const std::string filepath = owner()->workPath() + "chunk" + chunk
                      + fileCountName + ".mls1b";
             std::ofstream diskQueue(filepath, std::ios::out | std::ios::trunc);
-            writeToStream(diskQueue, FileChunkHeader::data, 0, Compression::snappy, raw);
+            writeToStream(diskQueue, FileChunkType::data, 0, DEFAULT_COMPRESSION, raw);
             //Assumption: data is generally uniform, so the size should be, +10% overhead
             //Otherwise there will be very large amount of unnecessary buffer hanging around/ many allocs
             diskQueue.flush();

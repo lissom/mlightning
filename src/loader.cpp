@@ -40,8 +40,8 @@ namespace loader {
             threads = std::thread::hardware_concurrency() + threads;
             if (threads < 1) {
                 std::cerr << "Request hardware threads(" << std::thread::hardware_concurrency()
-                << ") minus " << std::abs(originalThreads) << ".  That is less than 1.  Exiting"
-                << std::endl;
+                    << ") minus " << std::abs(originalThreads) << ".  That is less than 1.  Exiting"
+                    << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
@@ -51,6 +51,18 @@ namespace loader {
             workPath = work.make_preferred().native();
             if (workPath.back() != boost::filesystem::path::preferred_separator)
                 workPath += boost::filesystem::path::preferred_separator;
+            if (boost::filesystem::exists(boost::filesystem::path(workPath))) {
+                std::cerr << "workPath already exists, this can be dangerous so mLightning is exiting. "
+                        "Remove this path and all of it's contents and start again if the path is "
+                        "correct. workPath: " << workPath
+                      << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            if (!boost::filesystem::create_directories(workPath.substr(0,workPath.size() - 1))) {
+                std::cerr << "Unable to create workPath directory: " << workPath
+                      << std::endl;
+                exit(EXIT_FAILURE);
+            }
         }
 
         if (outputType == OUTPUT_MONGO)

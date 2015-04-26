@@ -18,6 +18,7 @@
 #include "input_format_file.h"
 #include <iostream>
 #include "loader_defs.h"
+#include <string.h>
 #include "stream_writer.h"
 
 namespace loader {
@@ -141,22 +142,25 @@ namespace loader {
         assert(_locSegment.begin == 0);
         assert(_locSegment.end == 0);
         assert(infile.is_open());
-        FileChunkHeader blockType;
+        FileChunkType blockType;
         SequenceId sid;
-        (void)readFromStream(infile, &blockType, &sid, &_buffer);
-        assert(blockType == FileChunkHeader::data);
+        _bufferSize = readFromStream(infile, &blockType, &sid, &_buffer);
+        assert(_bufferSize);
+        assert(blockType == FileChunkType::data);
         assert(sid == 0);
         _docCount = 0;
         _bufferPos = 0;
     }
 
     bool InputFormatMltn::next(mongo::BSONObj* const nextDoc) {
+        //Check to see if the end has been reached
+        if(_bufferPos == _bufferSize)
+            return false;
+
         ++_docCount;
         BsonSize bsonSize;
-        //Get the size
-        bsonSize = *reinterpret_cast<BsonSize*>(&_buffer[_bufferPos]);
-        //TODO: Undefined, endian, see mongo/src/mongo/platform/endian.h
-        bsonSize = *reinterpret_cast<int32_t*>(_buffer.data());
+        //TODO: Change to just pointing the bson object and try...catch over size
+        memcpy(&bsonSize, &_buffer[_bufferPos], sizeof(bsonSize));
         if (bsonSize > mongo::BSONObjMaxUserSize) {
             std::cerr << "Size too large for doc in block from file: " << _locSegment.file
                     << ".  Reading object #: " << _docCount << ".  Size: " << bsonSize
@@ -169,7 +173,7 @@ namespace loader {
             exit(EXIT_FAILURE);
         }
         //Read the rest of the object in the buffer
-        if (_bufferPos + bsonSize > _buffer.size()) {
+        if (_bufferPos + bsonSize > _bufferSize) {
             std::cerr << "Failed reading in block from file: " << _locSegment.file
                     << ".  Reading doc #: " << _docCount
                     << std::endl;

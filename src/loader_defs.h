@@ -29,8 +29,9 @@ namespace loader {
     /*
      * These enums are written to the file system, the value/ type cannot be safely changed
      */
-    enum class Compression : uint8_t { none = 0, snappy = 1 };
-    enum class FileChunkHeader : uint8_t { data = 0 };
+    enum class FileChunkFormat : uint8_t { none = 0, snappy = 1 };
+    const FileChunkFormat DEFAULT_COMPRESSION = FileChunkFormat::snappy;
+    enum class FileChunkType : uint8_t { data = 0 };
     //bsonspec.org defines the size of a bson object as 32 bit integer
     using BsonSize = int32_t;
     /*
@@ -40,7 +41,7 @@ namespace loader {
     /*
      * Output Types
      */
-    const char OUTPUT_FILE[] = "file";
+    const char OUTPUT_FILE[] = "mltn";
     const char OUTPUT_MONGO[] = "mongo";
     /*
      * Input types
@@ -52,7 +53,7 @@ namespace loader {
     const char INPUT_JSON[] = "json";
     const char INPUT_BSON[] = "bson";
     //covers all formats that mLightning creates
-    const char INPUT_MLTN[] = "mlgtn";
+    const char INPUT_MLTN[] = "mltn";
 }  //namespace loader
 
 

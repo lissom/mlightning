@@ -142,6 +142,7 @@ namespace loader {
         unsigned long long _docCount{};
         tools::LocSegment _locSegment;
         std::vector<char> _buffer;
+        size_t _bufferSize{};
 
         const static bool _registerFactory;
 

@@ -161,6 +161,7 @@ namespace loader {
 
         static const bool _registerFactoryJson;
         static const bool _registerFactoryBson;
+        static const bool _registerFactoryMltn;
     };
 
     /*

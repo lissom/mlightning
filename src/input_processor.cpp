@@ -26,11 +26,14 @@ namespace loader {
     const size_t MONGOINPUT_DEFAULT_MAX_SIZE = 100;
 
     const bool MongoInputProcessor::_registerFactory = InputProcessorFactory::registerCreator(
-            INPUT_MONGO, &MongoInputProcessor::create);
+            INPUT_MONGO, MongoInputProcessor::create);
     const bool FileInputProcessor::_registerFactoryJson = InputProcessorFactory::registerCreator(
-            INPUT_JSON, &FileInputProcessor::create);
+            INPUT_JSON, FileInputProcessor::create);
     const bool FileInputProcessor::_registerFactoryBson = InputProcessorFactory::registerCreator(
             INPUT_BSON, FileInputProcessor::create);
+    const bool FileInputProcessor::_registerFactoryMltn = InputProcessorFactory::registerCreator(
+            INPUT_MLTN, FileInputProcessor::create);
+
 
     MongoInputProcessor::MongoInputProcessor(Loader* const owner) :
         _owner(owner),
