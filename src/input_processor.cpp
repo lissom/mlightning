@@ -201,7 +201,6 @@ namespace loader {
                  * If the size per thread is greater than an overage, split the file up into segments
                  */
                 if (filerec.size > sizePerThread + OVERAGE_SIZE) {
-                    std::cout << "breaking: " << filerec.name << std::endl;
                     size_t pos{};
                     for (pos = 0; pos < filerec.size; pos += sizePerThread)
                         _locSegMapping.emplace_back(filerec.name, pos, pos + sizePerThread);
