@@ -1,9 +1,11 @@
 #The hash test requires --dropDB 1 is required for verificatio to work as hashing is database wide
 #The hash test requires that a mongoS which can access the md5s is on localhost:27017 on the machine this script is ran on
 OPTIONS=
+DO_DROP=1
 ML_PATH=/home/charlie/git/mlightning/Debug/
 MONGO1=mongodb://127.0.0.1:27017
-MONGO2=mongodb://127.0.0.1:27017
+#It is recommmended not to change MONGO2, this can break things in the test (like database cleanup)
+MONGO2=${MONGO1}
 DATA_DIR=/home/charlie/serialshort/
 DUMP_PATH=/tmp/mlightning_test/
 DIRECT_IN=1
@@ -17,6 +19,22 @@ runtest() {
         echo "Error with mlightning testing, manual cleanup for the failed test is required (this is intentional, it is kept for debug purposes)" >&2
 	exit $status
     fi
+}
+
+dropdatabases() {
+if [ "${MONGO1}" = "${MONGO2}" ]; then
+echo "Dropping databases this test created."
+mongo --nodb --norc << EOF
+var toDrop = ["import", "mirror", "mltnimport", "trans"]
+var mongos=new Mongo()
+for (i = toDrop.length - 1; i >= 0; --i) {
+  print("Dropping database " + toDrop[i])
+  mongos.getDB(toDrop[i]).dropDatabase()
+}
+EOF
+else
+echo "Different clusters used in testing, not removing databases"
+fi
 }
 
 runloadingtest() {
@@ -82,7 +100,6 @@ print("SUCCESS")
 //quit() prevents this from being saved in the history
 quit(0)
 EOF
-#TODO: Clean up the databases created
 } #runloadingtest
 
 runfiletest() {
@@ -155,3 +172,9 @@ EOF
 
 runloadingtest
 runfiletest
+
+echo "All tests have successfully completed."
+if [ ${DO_DROP} -eq 1 ]; then
+dropdatabases
+fi
+echo "Exiting now."
