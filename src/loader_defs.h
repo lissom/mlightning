@@ -29,8 +29,10 @@ namespace loader {
     /*
      * These enums are written to the file system, the value/ type cannot be safely changed
      */
-    enum class Compression : int8_t { none = 0, snappy = 1 };
-    enum class FileChunkHeader : int8_t { data = 0 };
+    enum class Compression : uint8_t { none = 0, snappy = 1 };
+    enum class FileChunkHeader : uint8_t { data = 0 };
+    //bsonspec.org defines the size of a bson object as 32 bit integer
+    using BsonSize = int32_t;
     /*
      * end file system enums
      */

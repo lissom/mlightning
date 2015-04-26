@@ -43,7 +43,7 @@ namespace tools {
         class MongoCluster {
         public:
             //The sort for chunks.  "max": 1
-            static const mongo::BSONObj CHUNK_SORT;
+            static const mongo::BSONObj& ConfigChunkSort();
             using DatabaseName = std::string;
             using NameSpace = std::string;
             using ShardName = std::string;
@@ -363,14 +363,14 @@ namespace tools {
             template<typename IndexType, typename MappingType>
             void loadIndex(IndexType* index, const std::string& queryNs, MappingType* linkmap,
                  const std::string& mappingName, const std::string group = "ns",
-                 const mongo::BSONObj& key = CHUNK_SORT);
+                 const mongo::BSONObj& key = ConfigChunkSort());
             /**
              * Specialization for more complex mapping
              */
             template<typename MappingType>
             void loadIndex(NsTagUBIndex* index, const std::string& queryNs, MappingType* linkmap,
                              const std::string& mappingName, const std::string group = "ns",
-                             const mongo::BSONObj& key = CHUNK_SORT);
+                             const mongo::BSONObj& key = ConfigChunkSort());
         };
 
         std::ostream& operator<<(std::ostream& ostream, MongoCluster& cluster);

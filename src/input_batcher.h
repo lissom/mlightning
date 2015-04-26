@@ -149,7 +149,7 @@ namespace loader {
                     _settings(std::move(settings)),
                     _mCluster(mCluster),
                     _out(out),
-                    _inputPlan(tools::mtools::MongoCluster::CHUNK_SORT),
+                    _inputPlan(tools::mtools::MongoCluster::ConfigChunkSort()),
                     _ns(ns)
             {
                 init(_ns);

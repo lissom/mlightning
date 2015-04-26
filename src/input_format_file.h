@@ -112,17 +112,40 @@ namespace loader {
 
     private:
         std::ifstream _infile;
-        std::string _line;
+        //The document offset for error reporting
+        unsigned long long _docCount{};
+        tools::LocSegment _locSegment;
+        std::vector<char> _buffer;
+
+        const static bool _registerFactory;
+    };
+
+    /**
+     * Reads for an mLightning formatted file
+     */
+    //TODO: use Source/Sink from snappy for less coping
+    class InputFormatMltn : public FileInputInterface {
+    public:
+        InputFormatMltn() {}
+        virtual void reset(tools::LocSegment segment);
+        virtual bool next(mongo::BSONObj* const nextDoc);
+        virtual size_t pos() {
+            return _bufferPos;
+        }
+
+        static FileInputInterfacePtr create() {
+            return FileInputInterfacePtr(new InputFormatMltn());
+        }
+
+    private:
+        //The document offset for error reporting
         unsigned long long _docCount{};
         tools::LocSegment _locSegment;
         std::vector<char> _buffer;
 
         const static bool _registerFactory;
 
-        ParseRapidJsonEvents _events;
-        size_t _bufferSize{};
-
-        size_t buffersize() { return _bufferSize; }
+        size_t _bufferPos{};
     };
 
 }  //namespace loader

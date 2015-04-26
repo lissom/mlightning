@@ -10,13 +10,15 @@
 namespace loader {
 
     void writeToStream(std::ostream& out, const FileChunkHeader blockType,
-            const int32_t sequenceId, const Compression formatType, const mongo::BufBuilder& data) {
+            const SequenceId sequenceId, const Compression formatType, const mongo::BufBuilder& data) {
         std::string compressed;
         uint64_t size;
         switch(formatType) {
         case Compression::none :
             size = data.len();
-            out << int8_t(blockType) << sequenceId << int8_t(formatType) << size;
+            out << static_cast<std::underlying_type<FileChunkHeader>::type>(blockType)
+                    << sequenceId << static_cast<std::underlying_type<Compression>::type>(formatType)
+                    << size;
             out.write(data.buf(), data.len());
             break;
         case Compression::snappy :
@@ -34,11 +36,13 @@ namespace loader {
         }
     }
 
-    bool readFromStream(std::istream& in, int8_t* blockType, int32_t* sequenceId,
+    bool readFromStream(std::istream& in, FileChunkHeader* blockType, SequenceId* sequenceId,
             std::vector<char>* data) {
-        in >> *blockType;
+        std::underlying_type<FileChunkHeader>::type fileChunkHeader;
+        std::underlying_type<Compression>::type compressionType;
+        in >> fileChunkHeader;
+        *blockType = static_cast<FileChunkHeader>(fileChunkHeader);
         in >> *sequenceId;
-        int8_t compressionType;
         in >> compressionType;
         uint64_t size;
         in >> size;
@@ -59,7 +63,7 @@ namespace loader {
                 throw std::logic_error("Unable to decompress block with snappy");
             break;
         }
-        return in.eof();
+        return !in.eof();
     }
 
 } /* namespace loader */

@@ -18,6 +18,7 @@
 #include "input_format_file.h"
 #include <iostream>
 #include "loader_defs.h"
+#include "stream_writer.h"
 
 namespace loader {
 
@@ -25,6 +26,10 @@ namespace loader {
                                                                            &InputFormatJson::create);
     const bool InputFormatBson::_registerFactory = InputFormatFactory::registerCreator(INPUT_BSON,
                                                                                &InputFormatBson::create);
+    const bool InputFormatMltn::_registerFactory = InputFormatFactory::registerCreator(INPUT_MLTN,
+                                                                               &InputFormatMltn::create);
+
+
 
     void InputFormatJson::reset(tools::LocSegment segment)
     {
@@ -54,7 +59,6 @@ namespace loader {
         ++_lineNumber;
         if (_locSegment.end && (_infile.tellg() > _locSegment.end)) return false;
         if (!getline(_infile, _line)) return false;
-        //*nextDoc = mongo::fromjson(_line);/*
         rapidjson::StringStream ss(_line.c_str());
         _events.reset();
         _events.bufferSizeSet(_bufferSize);
@@ -83,13 +87,14 @@ namespace loader {
         assert(_locSegment.begin == 0);
         assert(_locSegment.end == 0);
         assert(_infile.is_open());
+        _docCount = 0;
     }
 
     bool InputFormatBson::next(mongo::BSONObj* const nextDoc) {
-        //Read the size into the buffer
+        //Using index 1 for error reporting
         ++_docCount;
-        //bsonspec.org defines the size of a bson object as 32 bit integer
-        int32_t bsonSize;
+        //Read the size into the buffer
+        BsonSize bsonSize;
         _infile.read(_buffer.data(), sizeof(bsonSize));
         if (_infile.eof())
             return false;
@@ -102,21 +107,21 @@ namespace loader {
         //TODO: Undefined, endian, see mongo/src/mongo/platform/endian.h
         bsonSize = *reinterpret_cast<int32_t*>(_buffer.data());
         if (bsonSize > mongo::BSONObjMaxUserSize) {
-            std::cerr << "Size too large for object in file: " << _locSegment.file
-                    << ".  Reading object: " << _docCount << ".  Size: " << bsonSize
+            std::cerr << "Size too large for doc in file: " << _locSegment.file
+                    << ".  Reading doc #: " << _docCount << ".  Size: " << bsonSize
                     << std::endl;
             exit(EXIT_FAILURE);
-        } else if (bsonSize == 0) {
-            std::cerr << "Size too small for object in file: " << _locSegment.file
-                    << ".  Reading object: " << _docCount << ".  Size: " << bsonSize
+        } else if (bsonSize < 1) {
+            std::cerr << "Size too small for doc in file: " << _locSegment.file
+                    << ".  Reading doc #: " << _docCount << ".  Size: " << bsonSize
                     << std::endl;
             exit(EXIT_FAILURE);
         }
         //Read the rest of the object in the buffer
         _infile.read(_buffer.data() + (sizeof(bsonSize)), bsonSize - sizeof(bsonSize));
         if (!_infile) {
-            std::cerr << "Failed reading file: " << _locSegment.file
-                    << ".  Reading object: " << _docCount
+            std::cerr << "Failed reading from file: " << _locSegment.file
+                    << ".  Reading doc #: " << _docCount
                     << std::endl;
             exit(EXIT_FAILURE);
         }
@@ -125,5 +130,54 @@ namespace loader {
         return true;
     }
 
+    void InputFormatMltn::reset(tools::LocSegment segment)
+    {
+        std::ifstream infile;
+        _locSegment = std::move(segment);
+        if (infile.is_open())
+            infile.close();
+        infile.open(_locSegment.file, std::ios_base::in);
+        //we currently don't handle partial bson
+        assert(_locSegment.begin == 0);
+        assert(_locSegment.end == 0);
+        assert(infile.is_open());
+        FileChunkHeader blockType;
+        SequenceId sid;
+        (void)readFromStream(infile, &blockType, &sid, &_buffer);
+        assert(blockType == FileChunkHeader::data);
+        assert(sid == 0);
+        _docCount = 0;
+        _bufferPos = 0;
+    }
 
+    bool InputFormatMltn::next(mongo::BSONObj* const nextDoc) {
+        ++_docCount;
+        BsonSize bsonSize;
+        //Get the size
+        bsonSize = *reinterpret_cast<BsonSize*>(&_buffer[_bufferPos]);
+        //TODO: Undefined, endian, see mongo/src/mongo/platform/endian.h
+        bsonSize = *reinterpret_cast<int32_t*>(_buffer.data());
+        if (bsonSize > mongo::BSONObjMaxUserSize) {
+            std::cerr << "Size too large for doc in block from file: " << _locSegment.file
+                    << ".  Reading object #: " << _docCount << ".  Size: " << bsonSize
+                    << std::endl;
+            exit(EXIT_FAILURE);
+        } else if (bsonSize < 1) {
+            std::cerr << "Size too small for doc in block from file: " << _locSegment.file
+                    << ".  Reading object: " << _docCount << ".  Size: " << bsonSize
+                    << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        //Read the rest of the object in the buffer
+        if (_bufferPos + bsonSize > _buffer.size()) {
+            std::cerr << "Failed reading in block from file: " << _locSegment.file
+                    << ".  Reading doc #: " << _docCount
+                    << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        mongo::BSONObj tmpObj(&_buffer[_bufferPos]);
+        *nextDoc = tmpObj.copy();
+        _bufferPos += bsonSize;
+        return true;
+    }
 }  //namespace loader

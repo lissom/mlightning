@@ -21,7 +21,10 @@
 namespace tools {
     namespace mtools {
 
-        const mongo::BSONObj MongoCluster::CHUNK_SORT = BSON("max" << 1);
+        const mongo::BSONObj& MongoCluster::ConfigChunkSort() {
+            static const mongo::BSONObj ChunkSort = BSON("max" << 1);
+            return ChunkSort;
+        }
 
         MongoCluster::MongoCluster(const std::string& connStr)
         {
