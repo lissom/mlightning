@@ -4,6 +4,9 @@ This program has been verified to compile on Ubuntu 14.04 with gcc 4.8.2 (defaul
 
 #### gcc (g++) on Ubuntu 14.04
 	sudo apt-get install g++
+	
+#### snappy on Ubuntu 14.04	
+	sudo apt-get install libsnappy-dev
 
 #### tcmalloc on Ubuntu 14.04
 	sudo apt-get install libtcmalloc-minimal4

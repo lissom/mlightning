@@ -3,7 +3,7 @@
 mLightning
 ----------
 
-mlightning is a high speed router for loading data into [MongoDB](http://www.mongodb.org) sharded clusters.  Files or a MongoDB cluster are used as input.  To bypass mongoS either a hashed shard key or manually calculated presplits are required (calculating presplits will be added to mLightning in the future).  mongoS can be used if there aren't presplits available, however, be aware that this will generally be orders of magnitude slower with decent hardware.  Using a hash can be faster than calculating presplits in many cases with decent hardware, and so can be the better choice when using ephemeral data sets (for instance calculating end of day aggregate performance from several sources that are coalesced one dataset with MongoDB).
+mlightning is a high speed router for getting data into, out of and moved around in [MongoDB](http://www.mongodb.org).  To bypass mongoS either a hashed shard key or manually calculated presplits are required (calculating presplits will be added to mLightning in the future).  mongoS can be used if there aren't presplits available, however, be aware that this will generally be orders of magnitude slower with decent hardware.  Using a hash can be faster than calculating presplits in many cases with decent hardware, and so can be the better choice when using ephemeral data sets (for instance calculating end of day aggregate performance from several sources that are coalesced into one dataset with MongoDB).
 
 Written in C++, it requires the following to compile:
 * C++11 support (gcc 4.8.2)
