@@ -75,7 +75,6 @@ namespace loader {
             }
         else {
             //For all file output formats use hashed _id if the user hasn't given a different key
-            sharded = true;
             output.database = "mlightning";
             output.collection = "mlightning_synth";
             loadQueueJson = OUTPUT_FILE;
@@ -157,32 +156,30 @@ namespace loader {
         indexHas_id = false;
         indexPos_id = size_t(-1);
         size_t count {};
-        if(sharded) {
-            if (shardKeyJson.empty()) {
-                std::cerr << "No shard key for sharded setup" << std::endl;
-                exit(EXIT_FAILURE);
-            }
-            shardKeyBson = mongo::fromjson(shardKeyJson);
-            for (mongo::BSONObj::iterator i(shardKeyBson); i.more();) {
-                mongo::BSONElement key = i.next();
-                if (key.valueStringData() == std::string("hashed")) hashed = true;
-                else if (key.Int() != 1 && key.Int() != -1) {
-                    std::cerr << "Unknown value for key: " << key << "\nValues are 1, -1, hashed"
-                              << std::endl;
-                    exit(EXIT_FAILURE);
-                }
-                shardKeyFields.push_back(key.fieldName());
-                if (!indexHas_id && key.fieldNameStringData().toString() == "_id") {
-                    indexHas_id = true;
-                    indexPos_id = count;
-                }
-                ++count;
-            }
-            if (hashed && count > 1) {
-                std::cerr << "MongoDB currently only supports hashing of a single field"
+        if (shardKeyJson.empty()) {
+            std::cerr << "No shard key for sharded setup" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        shardKeyBson = mongo::fromjson(shardKeyJson);
+        for (mongo::BSONObj::iterator i(shardKeyBson); i.more();) {
+            mongo::BSONElement key = i.next();
+            if (key.valueStringData() == std::string("hashed")) hashed = true;
+            else if (key.Int() != 1 && key.Int() != -1) {
+                std::cerr << "Unknown value for key: " << key << "\nValues are 1, -1, hashed"
                           << std::endl;
                 exit(EXIT_FAILURE);
             }
+            shardKeyFields.push_back(key.fieldName());
+            if (!indexHas_id && key.fieldNameStringData().toString() == "_id") {
+                indexHas_id = true;
+                indexPos_id = count;
+            }
+            ++count;
+        }
+        if (hashed && count > 1) {
+            std::cerr << "MongoDB currently only supports hashing of a single field"
+                      << std::endl;
+            exit(EXIT_FAILURE);
         }
 
         if (!indexHas_id) add_id = false;
@@ -191,23 +188,20 @@ namespace loader {
     }
 
     Loader::Loader(Settings settings) :
-            _settings(std::move(settings)),
+            _settings (std::move(settings)),
             _mCluster (_settings.output.uri),
             _ramMax (tools::getTotalSystemMemory())
     {
     }
 
     void Loader::setupOutputCluster() {
-        if (_settings.sharded) {
-            if (!_mCluster.isSharded()) {
+        //The only valid shardkey without a sharded cluster is _id
+        if (_mCluster.sharded()) {
+            if (_settings.shardKeyJson.empty()) {
                 std::cerr << "Unable to load sharded cluster metadata, this is required for a"
                         " sharded cluster load" << std::endl;
                 exit(EXIT_FAILURE);
             }
-        }
-
-        //TODO: Change this when unsharded output is allowed
-        if (_mCluster.isSharded()) {
             if (_settings.output.stopBalancer) _mCluster.stopBalancer();
             _disableCollectionBalancing = _mCluster.isBalancingEnabled(_settings.output.ns());
             if (_disableCollectionBalancing) {
@@ -219,10 +213,14 @@ namespace loader {
                         << _settings.output.ns() << "\".  It will only be enabled on a successful load,"
                         " otherwise it must be done manually." << std::endl;
             }
-        }
-        else {
-            //Need to create fake shard info here
-            throw std::logic_error("Currently only supports sharded setups");
+        } else {
+            //If this isn't a sharded cluster, "shard" on _id by default
+            //There is no good way to do this as MongoCluster isn't brought up until now
+            if (_settings.shardKeyJson.empty()) {
+                Settings& newSettings = const_cast<Settings&>(_settings);
+                newSettings.shardKeyJson = "{_id:1}";
+                newSettings.parseShardKey();
+            }
         }
 
         std::unique_ptr<mongo::DBClientBase> conn;
@@ -233,27 +231,29 @@ namespace loader {
             exit(EXIT_FAILURE);
         }
 
+        //Mongo failes on "doens't exist", whichwe don't care about, so save any errors
+        mongo::BSONObj dropFailure;
         if (_settings.dropDb) {
-            conn->dropDatabase(_settings.output.database);
+            conn->dropDatabase(_settings.output.database, &dropFailure);
         }
         else if (_settings.dropColl) {
-            conn->dropCollection(_settings.output.ns());
+            conn->dropCollection(_settings.output.ns(), &dropFailure);
         }
         else if (_settings.dropIndexes) {
             conn->dropIndexes(_settings.output.ns());
         }
 
-        if (_settings.output.stopBalancer)
-            if(_mCluster.stopBalancerWait(std::chrono::seconds(120))) {
-                std::cerr << "Unable to stop the balancer" << std::endl;
-                exit(EXIT_FAILURE);
-            }
+        if (_mCluster.sharded()) {
+            if (_settings.output.stopBalancer)
+                if(_mCluster.stopBalancerWait(std::chrono::seconds(120))) {
+                    std::cerr << "Unable to stop the balancer" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
 
-        if (_settings.sharded) {
             //TODO: make these checks more sophisticated (i.e. conditions already true? success!)
             mongo::BSONObj info;
             if (!_mCluster.enableSharding(_settings.output.database, info)) {
-                if (info.getIntField("ok") != 0)
+                if (info.getIntField("ok") != 1)
                     std::cerr << "Sharding db failed: " << info << std::endl;
                 info = mongo::BSONObj().getOwned();
             }
@@ -265,6 +265,9 @@ namespace loader {
                     //The collection already being sharded is only an error if it was supposed to be dropped
                     std::string strerror = info.getStringField("errmsg");
                     if ((strerror != "already sharded") || _settings.dropDb || _settings.dropColl) {
+                        if (dropFailure.getIntField("ok") != 1)
+                            std::cerr << "Dropping " << (_settings.dropDb ? "database " : "collection ")
+                                << "failed: " << dropFailure.getStringField("errmsg") << "\n";
                         std::cerr << "Sharding collection failed: " << strerror << "\nExiting" << std::endl;
                         exit(EXIT_FAILURE);
                     }
@@ -283,8 +286,12 @@ namespace loader {
                     }
                 }
             }
+            //Capture sharded changes if we hashed, etc
+            _mCluster.loadCluster();
+        } else {
+            _mCluster.shardCollection(_settings.output.ns(), _settings.shardKeyBson, true, 1);
         }
-        _mCluster.loadCluster();
+
         _endPoints.reset(new EndPointHolder(_settings.output.endPoints, cluster()));
     }
 
@@ -316,11 +323,11 @@ namespace loader {
      */
     void Loader::dump() {
         //Create a single fake shard
-        _mCluster.shards().insert(std::make_pair("mlDummy", "mlDummy"));
+        _mCluster.shards().insert(std::make_pair("mlSynth", "mlSynth"));
         mongo::BSONObj info;
         //Create the splits to setup the file write by creating a synthetic output namespace
-        _mCluster.shardCollection(_settings.output.ns(), _settings.shardKeyBson, true,
-                _settings.threads, info, true);
+        _mCluster.shardCollection(_settings.output.ns(), _settings.shardKeyBson, false,
+                _settings.threads);
         //Setup the file write
         _chunkDispatch.reset(new dispatch::ChunkDispatcher(_settings.dispatchSettings,
                                                                    cluster(),

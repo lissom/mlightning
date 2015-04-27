@@ -21,8 +21,8 @@
 
 /**
  * Main todo:
- * C allow self sharded collections again
- * # shardkey index and then build then build afterward in the foreground
+ * # Abstract the output
+ * # drop shardkey index and then build then build afterward in the foreground
  * # auth
  * # continue on error (currently setup for shoot out mode)
  * # support mongoS string (or old style)

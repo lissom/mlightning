@@ -122,9 +122,9 @@ namespace tools {
             virtual ~MongoCluster();
 
             /**
-             * Did the load detect a shard
+             * Did the load detect a shard, i.e. a database called "config"
              */
-            bool isSharded() {
+            bool sharded() {
                 return _sharded;
             }
 
@@ -195,6 +195,27 @@ namespace tools {
             mongo::BSONObj getShardKeyAsBson(NameSpace ns);
 
             /**
+             * Runs the splitvector command
+             * "timeMillis" : 148,
+                "splitKeys" : [
+                    {
+                        "_id" : NumberLong(30531620)
+                    },
+                    {
+                        "_id" : NumberLong(125530294)
+                    }
+                ],
+                "ok" : 1,
+                "$gleStats" : {
+                    "lastOpTime" : Timestamp(0, 0),
+                    "electionId" : ObjectId("553c538132eb10c8fe1f5f46")
+                }
+                errmsg if ran on a sharded db: "can't do command: splitVector on sharded collection"))
+             */
+            bool splitVector(mongo::BSONObj* result, const NameSpace& ns,
+                    const mongo::BSONObj& shardKey, const long long maxChunkSizeBytes);
+
+            /**
              * All chunks for a single namespace
              */
             ShardBsonIndex& nsChunks(const std::string& ns) {
@@ -216,7 +237,8 @@ namespace tools {
             }
 
             /**
-             * MongoDB commands.  These operate exactly like the manual stats
+             * MongoDB commands.  Operate exactly how the manual states unless synthetic sharding
+             * is used.  Synthetic sharding is used to generate splits and address non-sharded setups
              */
             bool enableSharding(const DatabaseName& dbName, mongo::BSONObj& info);
 
@@ -225,12 +247,17 @@ namespace tools {
 
             //Presharding for a hashed shard key
             bool shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
-                                 const bool unique, const int initialChunks, mongo::BSONObj& info);
+                                 const bool unique, const uint initialChunks, mongo::BSONObj& info);
 
-            //Puts the collection into the MongoCluster namespace only
+            //Synthetic sharding function only
             bool shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
-                                 const bool unique, const int initialChunks, mongo::BSONObj& info,
-                                 const bool manual);
+                                 const bool unique, const uint initialChunks = 1);
+
+            /**
+             * splits is an BSONObj with an array called splitKeys (i.e. splitVector output)
+             */
+            bool shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
+                            const bool unique, const mongo::BSONObj& splits, const bool synthetic);
 
             //Flush all router configs
             void flushRouterConfigs();
@@ -310,6 +337,11 @@ namespace tools {
             }
 
             /**
+             * Generates a driver connection string from a shard database connection string
+             */
+            std::string generateShardConnection(const std::string& rawConn);
+
+            /**
              * loads values from the cluster from the _connStr string
              */
             void loadCluster();
@@ -374,6 +406,11 @@ namespace tools {
         };
 
         std::ostream& operator<<(std::ostream& ostream, MongoCluster& cluster);
+
+        inline bool validHashedShardKey(const mongo::BSONObj& shardKey) {
+            return (shardKey.nFields() == 1 && shardKey.firstElement().type() == mongo::BSONType::String
+                    && shardKey.firstElement().String() == "hashed");
+        }
 
     }  //namespace mtools
 }  //namespace tools

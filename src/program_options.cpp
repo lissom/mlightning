@@ -117,9 +117,7 @@ namespace loader {
             ("output.bulkWriteVersion", po::value<int>(&settings.dispatchSettings.bulkWriteVersion)
                     ->default_value(0), "Write protocol to use: 0 = 2.4; 1 = 2.6")
             ("output.writeConcern,w", po::value<int>(&settings.dispatchSettings.writeConcern)
-                    ->default_value(0), "write concern, # of nodes, -1 for a write concern of majority")
-            ("output.sharded,s", po::value<bool>(&settings.sharded)->default_value(true), "Used a sharded setup")
-            ;
+                    ->default_value(0), "write concern, # of nodes, -1 for a write concern of majority");
         setClusterOptions("output.", &generic, &settings.output);
         //Input Cluster
         generic.add_options()

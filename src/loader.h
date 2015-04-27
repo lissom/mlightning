@@ -106,7 +106,6 @@ namespace loader {
             FieldKeys shardKeyFields;
             bool dropDb;
             bool dropColl;
-            bool sharded;
             bool dropIndexes;
 
             ClusterSettings input;

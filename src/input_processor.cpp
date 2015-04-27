@@ -56,15 +56,25 @@ namespace loader {
     }
 
     void MongoInputProcessor::run() {
-        if (_mCluster.balancerIsRunning()) {
+        if (_mCluster.sharded() && _mCluster.balancerIsRunning()) {
             std::cout << "Waiting for balancer to stop.  Conn: " << _mCluster.connStr().toString() << std::endl;
             _mCluster.waitForBalancerToStop();
         }
         _inputShardChunks = _mCluster.getShardChunks(_ns);
+        //If the ns has no chunks, check to see if it's not sharded, if not synth shard it
         if (_inputShardChunks.empty()) {
-            std::cerr << "There were no chunks found for: " + _ns + "\nExiting" << std::endl;
-            //Assuming there were supposed to be chunks this is an error
-            exit(EXIT_FAILURE);
+            mongo::BSONObj splits;
+            //Set max chunks size to 64 megs
+            if (!_mCluster.splitVector(&splits, _ns, _owner->settings().shardKeyBson, 65 * 1024 * 1024)) {
+                std::cerr << "Error calling splitVector(no chunks found, assumed unsharded) for " << _ns
+                        << ": " << splits.getStringField("errmsg") << "\nExiting" << std::endl;
+                //Assuming there were supposed to be chunks this is an error
+                exit(EXIT_FAILURE);
+            }
+            _mCluster.shardCollection(_ns, _owner->settings().shardKeyBson, false,
+                   splits, true);
+            _inputShardChunks = _mCluster.getShardChunks(_ns);
+            assert(_inputShardChunks.size() > 0);
         }
         //displayChunkStats();
         dispatchChunksForRead();

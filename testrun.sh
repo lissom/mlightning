@@ -3,9 +3,11 @@
 OPTIONS=
 DO_DROP=1
 ML_PATH=/home/charlie/git/mlightning/Debug/
-MONGO1=mongodb://127.0.0.1:27017
-#It is recommmended not to change MONGO2, this can break things in the test (like database cleanup)
+MONGO1=mongodb://127.0.0.1:27018
 MONGO2=${MONGO1}
+#It is recommended to use MONGO1 === MONGO2
+#MONGO1=mongodb://127.0.0.1:27018
+#MONGO2=mongodb://127.0.0.1:27019
 DATA_DIR=/home/charlie/serialshort/
 DUMP_PATH=/tmp/mlightning_test/
 DIRECT_IN=1
@@ -13,7 +15,7 @@ DIRECT_OUT=1
 DIRECT_FINAL_IN=0
 DIRECT_FINAL_OUT=0
 runtest() {
-    "$@"
+echo    "$@"
     local status=$?
     if [ $status -ne 0 ]; then
         echo "Error with mlightning testing, manual cleanup for the failed test is required (this is intentional, it is kept for debug purposes)" >&2
@@ -39,7 +41,7 @@ fi
 
 runloadingtest() {
 echo ***Importing Data
-runtest ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct ${DIRECT_OUT} --output.db import --output.coll original --loadPath ${DATA_DIR} --dropDb 1
+#runtest ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct ${DIRECT_OUT} --output.db import --output.coll original --loadPath ${DATA_DIR} --dropDb 1
 echo .
 echo .
 echo ***Changing shard key
