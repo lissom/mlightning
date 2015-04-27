@@ -74,6 +74,7 @@ namespace tools {
         using Container = typename std::deque<Data>;
         using iterator = typename Container::iterator;
         using const_iterator = typename Container::const_iterator;
+        using reverse_iterator = typename Container::reverse_iterator;
         using CompareHolder = IndexPairCompare<Compare, Key>;
 
         BasicIndex(BasicIndex &&rhs) :
@@ -111,6 +112,12 @@ namespace tools {
         }
         iterator end() {
             return _container.end();
+        }
+        iterator rbegin() {
+            return _container.rbegin();
+        }
+        iterator rend() {
+            return _container.rend();
         }
         Value& front() {
             return _container.front().second;

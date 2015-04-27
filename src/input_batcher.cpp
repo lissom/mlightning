@@ -43,7 +43,7 @@ namespace loader {
             for (auto&& iCm : _mCluster.nsChunks(ns)) {
                 _inputPlan.insertUnordered(std::get<0>(iCm), ChunkBatcherPointer {});
                 size_t depth = ++(shardChunkCounters[std::get<1>(iCm)->first]);
-                //If there aren't enough queues given, then use the last one given for all next
+                //If there aren't enough queues given, then use the first one given for all next
                 try {
                     _inputPlan.back() = ChunkBatchFactory::createObject(_settings.loadQueues
                                         ->at(depth - 1), this, std::get<0>(iCm));

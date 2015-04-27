@@ -67,7 +67,14 @@ namespace loader {
             for (auto& iCm : _mCluster.nsChunks(ns())) {
                 _loadPlan.insertUnordered(std::get<0>(iCm), ChunkDispatchPointer {});
                 size_t depth = ++(shardChunkCounters[std::get<1>(iCm)->first]);
-                _loadPlan.back() = ChunkDispatcherFactory::createObject(_settings.loadQueues->at(depth - 1), this, _eph, std::get<0>(iCm));
+                //If there aren't enough queues given, then use the first one given for all next
+                try {
+                    _loadPlan.back() = ChunkDispatcherFactory::createObject(
+                        _settings.loadQueues->at(depth - 1), this, _eph, std::get<0>(iCm));
+                } catch (std::out_of_range &e) {
+                    _loadPlan.back() = ChunkDispatcherFactory::createObject(
+                        _settings.loadQueues->back(), this, _eph, std::get<0>(iCm));
+                }
             }
             assert(_loadPlan.size());
         }
