@@ -73,25 +73,22 @@ namespace tools {
         }
 
         MongoCluster::ShardChunks MongoCluster::getShardChunks(const NameSpace &ns) {
-
+            MongoCluster::ShardChunks shardChunks;
             //Use the internal getShardChunks here so synth shards are honored
             //Need to calc range
-            ShardChunks shardChunks;
-            std::string prevChunkName;
-            auto nsChunk = _nsChunks[ns];
-            if (nsChunk.size()) {
-                auto begin = nsChunk.cbegin();
-                mongo::BSONObj* prevMaxKey = &begin->first;
+            auto&& chunks = _nsChunks.find(ns);
+            if(chunks != _nsChunks.end() && chunks->second.size()) {
+                auto chunk = chunks->second.begin();
+                mongo::BSONObj minKey = generateMinKey(chunk->first);
+                mongo::BSONObj* prevMinKey = &minKey;
+                std::string prevChunkName = chunk->second->first;
+                for (; chunk != chunks->second.end(); ++chunk) {
+                    shardChunks[prevChunkName].emplace_back(
+                       ChunkRange(chunk->first, *prevMinKey));
+                    prevChunkName = chunk->second->first;
+                    prevMinKey = &chunk->first;
+                }
             }
-            /*
-            auto cur = _dbConn->query("config.chunks", BSON("ns" << ns));
-            while (cur->more()) {
-                mongo::BSONObj obj = cur->next();
-                shardChunks[obj.getStringField("shard")].emplace_back(
-                        ChunkRange(obj.getField("max").Obj().getOwned(),
-                                obj.getField("min").Obj().getOwned()));
-            }
-            */
             return std::move(shardChunks);
         }
 
@@ -419,13 +416,8 @@ namespace tools {
             shardKeyMap->insertUnordered(std::make_pair(BSON(shardKeyName << BSON("$maxkey" << 1)), shardItr));
             //Sort order is irrelevant, but it the only intr available, plus it means array order
             mongo::BSONObjIterator itr(splits["splitKeys"].Obj());
-            while (itr.more()) {
-                /*mongo::BSONObj next = itr.next().Obj().copy();
-                std::cout << next << std::endl;
-                shardKeyMap->insertUnordered(std::make_pair(next, shardItr));
-                */
+            while (itr.more())
                 shardKeyMap->insertUnordered(std::make_pair(itr.next().Obj().copy(), shardItr));
-            }
             //Sort happens for sharding
             shardKeyMap->finalize();
             return true;

@@ -41,7 +41,13 @@ namespace loader {
         _endPoints(_owner->settings().input.endPoints, _mCluster),
         _ns(_owner->settings().input.ns()),
         _tpBatcher(new tools::ThreadPool(_owner->settings().threads)),
-        _didDisableBalancerForNS( _mCluster.isBalancingEnabled(_owner->settings().input.ns())) {
+        _didDisableBalancerForNS( _mCluster.sharded() &&
+                _mCluster.isBalancingEnabled(_owner->settings().input.ns())) {
+        if (_mCluster.count(_ns) == 0) {
+            std::cerr << "There are no documents in " << _ns << "\nExiting" << std::endl;
+            //arguable if it's failure, but hey
+            exit(EXIT_SUCCESS);
+        }
         if (_didDisableBalancerForNS) {
            if (!_mCluster.disableBalancing(_owner->settings().input.ns()))
              exit(EXIT_FAILURE);
@@ -63,16 +69,16 @@ namespace loader {
         _inputShardChunks = _mCluster.getShardChunks(_ns);
         //If the ns has no chunks, check to see if it's not sharded, if not synth shard it
         if (_inputShardChunks.empty()) {
+            const mongo::BSONObj synthShardKey = BSON("_id" << 1);
             mongo::BSONObj splits;
-            //Set max chunks size to 64 megs
-            if (!_mCluster.splitVector(&splits, _ns, _owner->settings().shardKeyBson, 65 * 1024 * 1024)) {
+            //Set max chunks size to 64 megs, use _id becuase we can be sure it exists
+            if (!_mCluster.splitVector(&splits, _ns, synthShardKey, 65 * 1024 * 1024)) {
                 std::cerr << "Error calling splitVector(no chunks found, assumed unsharded) for " << _ns
                         << ": " << splits.getStringField("errmsg") << "\nExiting" << std::endl;
                 //Assuming there were supposed to be chunks this is an error
                 exit(EXIT_FAILURE);
             }
-            _mCluster.shardCollection(_ns, _owner->settings().shardKeyBson, false,
-                   splits, true);
+            _mCluster.shardCollection(_ns, synthShardKey, false, splits, true);
             _inputShardChunks = _mCluster.getShardChunks(_ns);
             assert(_inputShardChunks.size() > 0);
         }
@@ -145,7 +151,7 @@ namespace loader {
     void MongoInputProcessor::inputQueryCallBack(tools::mtools::DbOp* dbOp__,
             tools::mtools::OpReturnCode status__) {
         auto dbOp = dynamic_cast<tools::mtools::OpQueueQueryBulk*>(dbOp__);
-        //todo: handle fails gracefully
+        //TODO: handle fails gracefully
         //status should currently terminate in the results object
         assert(status__);
         _inputQueue.pushCheckMaxSize(std::move(dbOp->_data));

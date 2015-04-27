@@ -1,12 +1,15 @@
 #The hash test requires --dropDB 1 is required for verificatio to work as hashing is database wide
 #The hash test requires that a mongoS which can access the md5s is on localhost:27017 on the machine this script is ran on
 OPTIONS=
+DRY_RUN=
 DO_DROP=1
+DO_REMOVE_DUMP=1
 ML_PATH=/home/charlie/git/mlightning/Debug/
-MONGO1=mongodb://127.0.0.1:27018
+MONGO1=mongodb://127.0.0.1:27017
 MONGO2=${MONGO1}
 #It is recommended to use MONGO1 === MONGO2
-#MONGO1=mongodb://127.0.0.1:27018
+MONGO1=mongodb://127.0.0.1:27018
+MONGO2=$MONGO1
 #MONGO2=mongodb://127.0.0.1:27019
 DATA_DIR=/home/charlie/serialshort/
 DUMP_PATH=/tmp/mlightning_test/
@@ -15,7 +18,15 @@ DIRECT_OUT=1
 DIRECT_FINAL_IN=0
 DIRECT_FINAL_OUT=0
 runtest() {
-echo    "$@"
+    echo .
+    echo .
+    echo ***${1}
+    shift
+    if [ ! -z ${DRY_RUN} ] && [ ${DRY_RUN} -eq 1 ]; then
+      echo "$@"
+    else
+      "$@"
+    fi
     local status=$?
     if [ $status -ne 0 ]; then
         echo "Error with mlightning testing, manual cleanup for the failed test is required (this is intentional, it is kept for debug purposes)" >&2
@@ -39,24 +50,28 @@ echo "Different clusters used in testing, not removing databases"
 fi
 }
 
+removedumppath() {
+if [ ${DO_REMOVE_DUMP} -ne 1 ]; then
+  return
+fi
+rm -rf mkdir ${DUMP_PATH}
+if [ $? -eq 0 ]; then
+  echo "Dump path removed (it did not exist before this test was run)"
+else
+  echo "Failure to remove the dump path: ${DUMP_PATH}"
+fi
+}
+
 runloadingtest() {
-echo ***Importing Data
-#runtest ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct ${DIRECT_OUT} --output.db import --output.coll original --loadPath ${DATA_DIR} --dropDb 1
-echo .
-echo .
-echo ***Changing shard key
-runtest ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"org":"hashed"}' --output.uri ${MONGO2} --output.writeConcern 1 --output.direct ${DIRECT_OUT} --output.db trans --output.coll trans --input.uri ${MONGO1} --input.db import --input.coll original --input.direct ${DIRECT_IN} --dropDb 1
-echo .
-echo .
-echo ***Reverting back to original shard key
+runtest "Importing data" ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct ${DIRECT_OUT} --output.db import --output.coll original --loadPath ${DATA_DIR} --dropDb 1
+
+runtest "Changing shard key" ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"org":"hashed"}' --output.uri ${MONGO2} --output.writeConcern 1 --output.direct ${DIRECT_OUT} --output.db trans --output.coll trans --input.uri ${MONGO1} --input.db import --input.coll original --input.direct ${DIRECT_IN} --dropDb 1
+
 #Direct isn't used here so routing is verified too
-runtest ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct ${DIRECT_FINAL_OUT} --output.db mirror --output.coll mirror --input.uri ${MONGO2} --input.db trans --input.coll trans --input.direct ${DIRECT_FINAL_IN} --dropDb 1
-echo .
-echo .
-echo ***Verifing
-echo The verify is only valid if all operations have taken place on the same cluster
+runtest "Reverting back to original shard key" ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.writeConcern 1 --output.direct ${DIRECT_FINAL_OUT} --output.db mirror --output.coll mirror --input.uri ${MONGO2} --input.db trans --input.coll trans --input.direct ${DIRECT_FINAL_IN} --dropDb 1
+
 #TODO: pump this into /tmp and use sed to set the variables
-runtest mongo --nodb --norc << EOF
+runtest "Verifing restarding (The verify is only valid if all operations have taken place on the 127.0.0.1:27017 cluster)" mongo --nodb --norc << EOF
 var sourcedb="import"
 var sourcecoll="original"
 var targetdb="mirror"
@@ -105,25 +120,10 @@ EOF
 } #runloadingtest
 
 runfiletest() {
-echo .
-echo .
-echo ***Dumping the database
-runtest ${ML_PATH}mlightning ${OPTIONS} --input.uri ${MONGO1} --input.direct ${DIRECT_IN} --input.db mirror --input.coll mirror --outputType mltn --workPath ${DUMP_PATH}
-echo .
-echo .
-echo ***Restoring the database
-runtest ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.direct ${DIRECT_OUT} --output.db mltnimport --output.coll mirror --inputType mltn --loadPath ${DUMP_PATH}
-rm -rf mkdir ${DUMP_PATH}
-if [ $? -eq 0 ]; then
-  echo "Dump path removed (it did not exist before this test was run)"
-else
-  echo "Failure to remove the dump path: ${DUMP_PATH}"
-fi
-echo .
-echo .
-echo ***Verifing
-echo The verify is only valid if all operations have taken place on the same cluster
-runtest mongo --nodb --norc << EOF
+runtest "Dumping the database" ${ML_PATH}mlightning ${OPTIONS} --input.uri ${MONGO1} --input.direct ${DIRECT_IN} --input.db mirror --input.coll mirror --outputType mltn --workPath ${DUMP_PATH}
+runtest "Restoring the database" ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.direct ${DIRECT_OUT} --output.db mltnimport --output.coll mirror --inputType mltn --loadPath ${DUMP_PATH}
+removedumppath
+runtest "Verifying dump and restore (The verify is only valid if all operations have taken place on the 127.0.0.1:27017 cluster)" mongo --nodb --norc << EOF
 var sourcedb="import"
 var sourcecoll="original"
 var targetdb="mltnimport"
@@ -167,7 +167,7 @@ if (md5import.md5 != md5mirror.md5) {
     quit(1)
 }
 print("SUCCESS")
-//quit() prevents this from being saved in the history
+//quit(0) prevents this from being saved in the history
 quit(0)
 EOF
 } #runfiletest
@@ -175,7 +175,13 @@ EOF
 runloadingtest
 runfiletest
 
-echo "All tests have successfully completed."
+echo "***"
+echo "***"
+echo "***"
+echo "***         All tests have successfully completed!"
+echo "***"
+echo "***"
+echo "***"
 if [ ${DO_DROP} -eq 1 ]; then
 dropdatabases
 fi

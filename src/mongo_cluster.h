@@ -128,6 +128,16 @@ namespace tools {
                 return _sharded;
             }
 
+            /**
+             * Calls the count command
+             */
+            size_t count(const NameSpace &ns) {
+                return _dbConn->count(ns);
+            }
+
+            /**
+             * Only meaningful to check for sharded collections
+             */
             bool exists(const NameSpace &ns) {
                 return _colls.count(ns) > 0;
             }
@@ -412,5 +422,20 @@ namespace tools {
                     && shardKey.firstElement().String() == "hashed");
         }
 
+        inline mongo::BSONObj generateMinKey(const mongo::BSONObj& indexKey) {
+            mongo::BSONObjBuilder bob;
+            mongo::BSONObjIterator key(indexKey);
+            while (key.more())
+                bob.appendMinKey(key.next().fieldName());
+            return bob.obj();
+        }
+
+        inline mongo::BSONObj generateMaxKey(const mongo::BSONObj& indexKey) {
+            mongo::BSONObjBuilder bob;
+            mongo::BSONObjIterator key(indexKey);
+            while (key.more())
+                bob.appendMaxKey(key.next().fieldName());
+            return bob.obj();
+        }
     }  //namespace mtools
 }  //namespace tools
