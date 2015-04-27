@@ -21,6 +21,7 @@
 
 /**
  * Main todo:
+ * # Create collections with the _id index and build it after {autoIndexId: false}
  * # Abstract the output
  * # drop shardkey index and then build then build afterward in the foreground
  * # auth
