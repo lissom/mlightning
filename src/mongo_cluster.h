@@ -86,9 +86,9 @@ namespace tools {
             };
             //ShardMap is a map of mongo connection string to shards
             using ShardMap = std::unordered_map<ShardName, ShardConn>;
-            //Shard chunk range upper bound map
+            //Shard chunk range upper bound map, chunks must be < sorted for MongoCluster::getShardChunks
             using ShardBsonIndex = tools::Index<ChunkIndexKey, ShardMap::iterator, tools::BsonCompare>;
-            //Chunks in a namespace map
+            //Chunks in a namespace map, chunks must be < sorted for MongoCluster::getShardChunks
             using NsUBIndex = std::unordered_map<NameSpace, ShardBsonIndex>;
             //Tagged sharding tag->shards
             using TagShards = std::unordered_map<ShardTag, std::vector<ShardMap::iterator>>;
@@ -375,6 +375,7 @@ namespace tools {
             mongo::ConnectionString _connStr;
             Mongos _mongos;
             ShardMap _shards;
+            //_nsChunks must be < sorted
             NsUBIndex _nsChunks;
             TagShards _shardTags;
             NsTagUBIndex _nsTagRanges;
