@@ -95,6 +95,7 @@ namespace loader {
         Loader* const _owner;
         //Number of chunks that have not had their results queued, must be set before processing starts
         std::atomic<size_t> _chunksRemaining{};
+        size_t _chunksTotal;
         //Target input cluster
         tools::mtools::MongoCluster _mCluster;
         //Ends points to target input cluster

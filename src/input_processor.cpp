@@ -86,9 +86,9 @@ namespace loader {
         //displayChunkStats();
         dispatchChunksForRead();
         setupProcessLoops();
-        std::cout << "Namespace " << _ns;
-        if (_mCluster.sharded()) std::cout << "(" << _mCluster.shards().size() << " node sharded cluster)";
-        std::cout << ": " << _chunksRemaining << " chunks\n"
+        std::cout << "Namespace: " << _ns;
+        if (_mCluster.sharded()) std::cout << " (" << _mCluster.shards().size() << " node sharded cluster)";
+        std::cout << "Chunks: " << _chunksTotal
         << "\nKicking off run" << std::endl;
         _tpBatcher->endWait();
     }
@@ -151,6 +151,7 @@ namespace loader {
                 ++_chunksRemaining;
             }
         }
+        _chunksTotal = _chunksRemaining;
     }
 
     void MongoInputProcessor::inputQueryCallBack(tools::mtools::DbOp* dbOp__,
