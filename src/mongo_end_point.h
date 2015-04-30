@@ -284,7 +284,7 @@ namespace tools {
             /**
              * Are the end points active?
              */
-            bool isRunning() {
+            bool running() {
                 return _started;
             }
 

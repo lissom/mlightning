@@ -69,6 +69,7 @@ namespace loader {
         _inputShardChunks = _mCluster.getShardChunks(_ns);
         //If the ns has no chunks, check to see if it's not sharded, if not synth shard it
         if (_inputShardChunks.empty()) {
+            std::cout << "Non-sharded collection detected, synthetic sharding" << std::endl;
             const mongo::BSONObj synthShardKey = BSON("_id" << 1);
             mongo::BSONObj splits;
             //Set max chunks size to 64 megs, use _id becuase we can be sure it exists
@@ -85,6 +86,10 @@ namespace loader {
         //displayChunkStats();
         dispatchChunksForRead();
         setupProcessLoops();
+        std::cout << "Namespace " << _ns;
+        if (_mCluster.sharded()) std::cout << "(" << _mCluster.shards().size() << " node sharded cluster)";
+        std::cout << ": " << _chunksRemaining << " chunks\n"
+        << "\nKicking off run" << std::endl;
         _tpBatcher->endWait();
     }
 

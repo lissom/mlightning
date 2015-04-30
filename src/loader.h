@@ -210,10 +210,6 @@ namespace loader {
         void dump();
         void load();
 
-        bool enabledEndPoints() {
-            return _endPoints->isRunning();
-        }
-
         /**
          * Setup the environment for loading
          * 1)Check to make sure we are sharded or not as user indicates

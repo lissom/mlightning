@@ -290,10 +290,6 @@ namespace loader {
         _endPoints.reset(new EndPointHolder(_settings.output.endPoints, cluster()));
     }
 
-    void Loader::setEndPoints() {
-        _endPoints->start();
-    }
-
     dispatch::ChunkDispatchInterface* Loader::getNextFinalize() {
         tools::MutexLockGuard lg(_prepSetMutex);
         if (_wf.empty()) return nullptr;
@@ -371,12 +367,13 @@ namespace loader {
         _timerSetup.stop();
         _timerRead.start();
 
+        _endPoints->start();
+
         std::unique_ptr<InputProcessorInterface> inputProcessor(
             InputProcessorFactory::createObject(_settings.inputType, this));
         inputProcessor->run();
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        setEndPoints();
 
         /*
          * After the load is complete hit all queues and call any additional actions.
