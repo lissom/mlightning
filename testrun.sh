@@ -1,7 +1,7 @@
 #The hash test requires --dropDB 1 is required for verificatio to work as hashing is database wide
 #The hash test requires that a mongoS which can access the md5s is on localhost:27017 on the machine this script is ran on
 OPTIONS=
-DRY_RUN=1
+DRY_RUN=0
 DO_DROP=1
 DO_REMOVE_DUMP=1
 if [ ! -z ${DRY_RUN} ] && [ ${DRY_RUN} -eq 1 ]; then

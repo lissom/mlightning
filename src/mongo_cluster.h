@@ -56,7 +56,9 @@ namespace tools {
 
                 ChunkRange(ChunkIndexKey max__, ChunkIndexKey min__) :
                     max(max__), min(min__)
-                { }
+                {
+                    assert(min < max);
+                }
             };
             using ShardChunks = std::unordered_map<ShardName, std::deque<ChunkRange>>;
             struct MetaNameSpace {
