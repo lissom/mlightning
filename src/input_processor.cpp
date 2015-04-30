@@ -38,7 +38,7 @@ namespace loader {
     MongoInputProcessor::MongoInputProcessor(Loader* const owner) :
         _owner(owner),
         _mCluster(_owner->settings().input.uri),
-        _endPoints(_owner->settings().input.endPoints, _mCluster),
+        _loadEndPoints(_owner->settings().input.endPoints, _mCluster),
         _ns(_owner->settings().input.ns()),
         _tpBatcher(new tools::ThreadPool(_owner->settings().threads)),
         _didDisableBalancerForNS( _mCluster.sharded() &&
@@ -72,7 +72,7 @@ namespace loader {
             std::cout << "Non-sharded collection detected, synthetic sharding" << std::endl;
             const mongo::BSONObj synthShardKey = BSON("_id" << 1);
             mongo::BSONObj splits;
-            //Set max chunks size to 64 megs, use _id becuase we can be sure it exists
+            //Set max chunks size to 64 megs, use _id because we can be sure it exists
             if (!_mCluster.splitVector(&splits, _ns, synthShardKey, 65 * 1024 * 1024)) {
                 std::cerr << "Error calling splitVector(no chunks found, assumed unsharded) for " << _ns
                         << ": " << splits.getStringField("errmsg") << "\nExiting" << std::endl;
@@ -84,12 +84,15 @@ namespace loader {
             assert(_inputShardChunks.size() > 0);
         }
         //displayChunkStats();
+        _loadEndPoints.start();
         dispatchChunksForRead();
         setupProcessLoops();
         std::cout << "Namespace: " << _ns;
         if (_mCluster.sharded()) std::cout << " (" << _mCluster.shards().size() << " node sharded cluster)";
         std::cout << "Chunks: " << _chunksTotal
         << "\nKicking off run" << std::endl;
+        //Ensure loadEndPoints are running, they are required to fill all queries for the _tpBatcher to end=
+        assert(_loadEndPoints.running());
         _tpBatcher->endWait();
     }
 
@@ -124,7 +127,6 @@ namespace loader {
 
     void MongoInputProcessor::setupProcessLoops() {
         //If chunksRemaining isn't > 0 the processing can terminate prematurely
-        assert(_chunksRemaining > 0);
         _tpBatcher->threadForEach([this]() {this->threadProcessLoop();});
     }
 
@@ -137,10 +139,10 @@ namespace loader {
         if (_inputShardChunks.empty()) throw std::logic_error("MongoInputProcessor::dispatchChunksForRead - no chunks found for reading");
         for (auto&& shardChunks: _inputShardChunks) {
             EndPointHolder::MongoEndPoint* endPoint;
-            if (_endPoints.directLoad())
-                endPoint = _endPoints.at(shardChunks.first);
+            if (_loadEndPoints.directLoad())
+                endPoint = _loadEndPoints.at(shardChunks.first);
             else
-                endPoint = _endPoints.getMongoSCycle();
+                endPoint = _loadEndPoints.getMongoSCycle();
             for (const auto& chunks: shardChunks.second) {
                 endPoint->push(tools::mtools::OpQueueQueryBulk::make(
                         [this](tools::mtools::DbOp* op, tools::mtools::OpReturnCode status) {
@@ -149,9 +151,25 @@ namespace loader {
                     _ns,
                     mongo::Query().minKey(chunks.min).maxKey(chunks.max).hint(shardKey)));
                 ++_chunksRemaining;
+                //Separate operation as we cannot be sure processing hasn't started
+                ++_chunksTotal;
             }
         }
-        _chunksTotal = _chunksRemaining;
+        if (_chunksTotal == 0) {
+            size_t count =_mCluster.count(_ns);
+            auto exitCode = EXIT_SUCCESS;
+            if (count) {
+                std::cerr << "There are documents in " << _ns;
+                exitCode = EXIT_FAILURE;
+            }
+            else {
+                std::cerr << "There are no chunks in " << _ns << "(but there are "
+                        << count << "documents)";
+            }
+            std::cerr << "\nExiting" << std::endl;
+            exit(exitCode);
+
+        }
     }
 
     void MongoInputProcessor::inputQueryCallBack(tools::mtools::DbOp* dbOp__,
@@ -164,7 +182,7 @@ namespace loader {
     }
 
     void MongoInputProcessor::waitEnd() {
-        _endPoints.gracefulShutdownJoin();
+        _loadEndPoints.gracefulShutdownJoin();
         _tpBatcher->endWaitInitiate();
         _tpBatcher->joinAll();
         if (_chunksRemaining) {

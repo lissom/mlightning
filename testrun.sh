@@ -8,7 +8,7 @@ if [ ! -z ${DRY_RUN} ] && [ ${DRY_RUN} -eq 1 ]; then
   DO_DROP=0
   DO_REMOVE_DUMP=0
 fi
-ML_PATH=/home/charlie/git/mlightning/Release/
+ML_PATH=/home/charlie/git/mlightning/Debug/
 MONGO1=127.0.0.1:27017
 MONGO2=${MONGO1}
 #It is recommended to use MONGO1 === MONGO2

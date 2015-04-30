@@ -99,7 +99,7 @@ namespace loader {
         //Target input cluster
         tools::mtools::MongoCluster _mCluster;
         //Ends points to target input cluster
-        EndPointHolder _endPoints;
+        EndPointHolder _loadEndPoints;
         //Input namespace
         const std::string _ns;
         //Input chunks by shard, is drained eventually
