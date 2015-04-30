@@ -1,7 +1,7 @@
 #The hash test requires --dropDB 1 is required for verificatio to work as hashing is database wide
 #The hash test requires that a mongoS which can access the md5s is on localhost:27017 on the machine this script is ran on
 OPTIONS=
-DRY_RUN=
+DRY_RUN=1
 DO_DROP=1
 DO_REMOVE_DUMP=1
 if [ ! -z ${DRY_RUN} ] && [ ${DRY_RUN} -eq 1 ]; then
@@ -12,9 +12,9 @@ ML_PATH=/home/charlie/git/mlightning/Debug/
 MONGO1=127.0.0.1:27017
 MONGO2=${MONGO1}
 #It is recommended to use MONGO1 === MONGO2
-MONGO1=mongodb://127.0.0.1:27018
+#MONGO1=mongodb://127.0.0.1:27018
 #MONGO2=$MONGO1
-MONGO2=mongodb://127.0.0.1:27019
+#MONGO2=mongodb://127.0.0.1:27019
 DATA_DIR=/home/charlie/serialshort/
 DUMP_PATH=/tmp/mlightning_test/
 DIRECT_IN=1

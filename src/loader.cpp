@@ -58,11 +58,6 @@ namespace loader {
                       << std::endl;
                 exit(EXIT_FAILURE);
             }
-            if (!boost::filesystem::create_directories(workPath.substr(0,workPath.size() - 1))) {
-                std::cerr << "Unable to create workPath directory: " << workPath
-                      << std::endl;
-                exit(EXIT_FAILURE);
-            }
         }
 
         if (outputType == OUTPUT_MONGO)
@@ -322,6 +317,12 @@ namespace loader {
      * Starts the input to the synthetic splits and dumps to disk
      */
     void Loader::dump() {
+        if (!boost::filesystem::create_directories(_settings.workPath.substr(0,
+                _settings.workPath.size() - 1))) {
+            std::cerr << "Unable to create workPath directory: " << _settings.workPath
+                  << std::endl;
+            exit(EXIT_FAILURE);
+        }
         //Create a single fake shard
         _mCluster.shards().insert(std::make_pair("mlSynth", "mlSynth"));
         mongo::BSONObj info;

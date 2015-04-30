@@ -83,7 +83,7 @@ namespace tools {
                 mongo::BSONObj* prevMinKey = &minKey;
                 std::string prevChunkName = chunk->second->first;
                 for (; chunk != chunks->second.end(); ++chunk) {
-                    assert(chunk->first < *prevMinKey);
+                    assert(chunk->first > *prevMinKey);
                     shardChunks[prevChunkName].emplace_back(
                        ChunkRange(chunk->first, *prevMinKey));
                     prevChunkName = chunk->second->first;
