@@ -104,9 +104,10 @@ namespace loader {
             std::string shardKeyJson;
             mongo::BSONObj shardKeyBson;
             FieldKeys shardKeyFields;
-            bool dropDb;
-            bool dropColl;
-            bool dropIndexes;
+            bool dropDb{};
+            bool dropColl{};
+            //Drop indexes is not guaranteed to be initialized except for here
+            bool dropIndexes{};
 
             ClusterSettings input;
             ClusterSettings output;
