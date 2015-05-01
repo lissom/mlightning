@@ -104,6 +104,7 @@ namespace loader {
             std::string shardKeyJson;
             mongo::BSONObj shardKeyBson;
             FieldKeys shardKeyFields;
+            std::string shardedSplits;
             bool dropDb{};
             bool dropColl{};
             //Drop indexes is not guaranteed to be initialized except for here

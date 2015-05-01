@@ -84,6 +84,27 @@ namespace tools {
         }
 
         /**
+         * Enqueus a work function numWorkers times
+         * If numbers workers is < 0, then maxthreads - numWorkers
+         * The function is always queued once
+         */
+        void queue(ThreadFunction func, int numWorkers) {
+            if (numWorkers <= 0) {
+                if (numWorkers == 0)
+                    numWorkers = 1;
+                else {
+                    numWorkers += _threads.size();
+                    if (numWorkers < 0)
+                        numWorkers = 1;
+                }
+            }
+            MutexLockGuard lock(_workMutex);
+            for (int i = 0; i < numWorkers; ++i)
+                _workQueue.push_back(func);
+            _workNotify.notify_all();
+        }
+
+        /**
          * Queue this function once for each thread in the queue
          */
         void threadForEach(ThreadFunction func) {

@@ -34,6 +34,17 @@
 namespace loader {
 
     void Loader::Settings::process() {
+        bool found = false;
+        for (auto&& value: SHARDED_SPLITS) {
+            if (value == shardedSplits) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            std::cerr << "Bad value for shardedSplits: " << shardedSplits << std::endl;
+            exit(EXIT_FAILURE);
+        }
         int originalThreads = threads;
         if (threads == 0) threads = std::thread::hardware_concurrency() * 2;
         else if (threads < 0) {
@@ -319,9 +330,10 @@ namespace loader {
                   << std::endl;
             exit(EXIT_FAILURE);
         }
+
+        //create a fake output cluster for breaking up the output
         //Create a single fake shard
         _mCluster.shards().insert(std::make_pair("mlSynth", "mlSynth"));
-        mongo::BSONObj info;
         //Create the splits to setup the file write by creating a synthetic output namespace
         _mCluster.shardCollection(_settings.output.ns(), _settings.shardKeyBson, false,
                 _settings.threads);
@@ -330,6 +342,7 @@ namespace loader {
                                                                    cluster(),
                                                                    nullptr,
                                                                    _settings.output.ns()));
+
         _timerSetup.stop();
         _timerRead.start();
         //Setup the input processor and run it

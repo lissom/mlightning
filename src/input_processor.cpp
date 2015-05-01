@@ -37,10 +37,11 @@ namespace loader {
 
     MongoInputProcessor::MongoInputProcessor(Loader* const owner) :
         _owner(owner),
+        _shardKey(_mCluster.getNs(_ns).key),
         _mCluster(_owner->settings().input.uri),
         _loadEndPoints(_owner->settings().input.endPoints, _mCluster),
         _ns(_owner->settings().input.ns()),
-        _tpBatcher(new tools::ThreadPool(_owner->settings().threads)),
+        _tpBatcher(new tools::ThreadPool(_owner->settings().threads + 2)),
         _didDisableBalancerForNS( _mCluster.sharded() &&
                 _mCluster.isBalancingEnabled(_owner->settings().input.ns())) {
         if (_mCluster.count(_ns) == 0) {
@@ -69,7 +70,7 @@ namespace loader {
         _inputShardChunks = _mCluster.getShardChunks(_ns);
         //If the ns has no chunks, check to see if it's not sharded, if not synth shard it
         if (_inputShardChunks.empty()) {
-            std::cout << "Non-sharded collection detected, synthetic sharding" << std::endl;
+            std::cout << "Non-sharded collection detected, synthetic sharding (this can take a while)" << std::endl;
             const mongo::BSONObj synthShardKey = BSON("_id" << 1);
             mongo::BSONObj splits;
             //Set max chunks size to 64 megs, use _id because we can be sure it exists
@@ -83,16 +84,30 @@ namespace loader {
             _inputShardChunks = _mCluster.getShardChunks(_ns);
             assert(_inputShardChunks.size() > 0);
         }
+        else {
+            //Even if sharded, shard anyway if "forced" or "auto" and the chunk count is poor
+            size_t chunks{};
+            for (auto&& shardChunks: _inputShardChunks)
+                chunks += shardChunks.second.size();
+            if ((_mCluster.count(_ns) / chunks >  MAX_DOCS_PER_CHUNK
+                    && _owner->settings().shardedSplits == "auto")
+                    || _owner->settings().shardedSplits == "force") {
+                HERE
+            }
+        }
         //displayChunkStats();
-        _loadEndPoints.start();
-        dispatchChunksForRead();
-        setupProcessLoops();
+        _tpBatcher->queue([this]{this->_loadEndPoints.start();});
+        _tpBatcher->queue([this]{this->dispatchChunksForRead();});
+        _tpBatcher->queue([this]{this->threadProcessLoop();}, -2);
         std::cout << "Namespace: " << _ns;
-        if (_mCluster.sharded()) std::cout << " (" << _mCluster.shards().size() << " node sharded cluster)";
-        std::cout << "Chunks: " << _chunksTotal
+        if (_mCluster.sharded())
+            std::cout << " (" << _mCluster.shards().size() << " node sharded cluster)";
+        size_t chunks{};
+        for (auto&& shardChunks: _inputShardChunks)
+            chunks += shardChunks.second.size();
+        std::cout << "Chunks: " << chunks
         << "\nKicking off run" << std::endl;
-        //Ensure loadEndPoints are running, they are required to fill all queries for the _tpBatcher to end=
-        assert(_loadEndPoints.running());
+        //Ensure loadEndPoints are running, they are required to fill all queries for the _tpBatcher to end
         _tpBatcher->endWait();
     }
 
@@ -105,17 +120,24 @@ namespace loader {
     }
 
     void MongoInputProcessor::threadProcessLoop() {
+        bool gotLoadDone{};
         DocumentProcessor dp(_owner);
         BsonContainer data;
         for (;;) {
             //Check if there is work to do, if not and there is future work, sleep 1s
             if (!_inputQueue.pop(data)) {
-                if (_chunksRemaining == 0)
-                  break;
-                sleep(1);
+                if (_loadDone == true && _chunksRemaining == 0) {
+                    //Double check to ensure variables were set after pop was false
+                    if (gotLoadDone) {
+                        std::cout << "MongoInputProcessor::threadProcessLoop: Exiting work thread" << std::endl;
+                        break;
+                    }
+                    else
+                        gotLoadDone = true;
+                }
+                std::this_thread::sleep_for(std::chrono::seconds(1));
                 continue;
             }
-            --_chunksRemaining;
             for(auto&& itr: data) {
                 dp.doc = itr;
                 dp.process();
@@ -125,17 +147,9 @@ namespace loader {
         }
     }
 
-    void MongoInputProcessor::setupProcessLoops() {
-        //If chunksRemaining isn't > 0 the processing can terminate prematurely
-        _tpBatcher->threadForEach([this]() {this->threadProcessLoop();});
-    }
-
     void MongoInputProcessor::dispatchChunksForRead() {
-        //todo: should change this to iterate by shard (i.e. while (shardChunks.size() .. for(.. if !size remove))
-        //todo: may need to run in a different context for extremely large chunk counts so things kick off immediately
-        //Shardkey must be added so that hashed shard keys are properly accounted for
-        mongo::BSONObj shardKey = _mCluster.getNs(_ns).key;
-        if (shardKey.isEmpty()) throw std::logic_error("MongoInputProcessor::dispatchChunksForRead - shardKey to hint on cannot be empty.");
+        _tpDispatchReads.reset(new tools::ThreadPool(_loadEndPoints.size()));
+        if (_shardKey.isEmpty()) throw std::logic_error("MongoInputProcessor::dispatchChunksForRead - shardKey to hint on cannot be empty.");
         if (_inputShardChunks.empty()) throw std::logic_error("MongoInputProcessor::dispatchChunksForRead - no chunks found for reading");
         for (auto&& shardChunks: _inputShardChunks) {
             EndPointHolder::MongoEndPoint* endPoint;
@@ -143,36 +157,31 @@ namespace loader {
                 endPoint = _loadEndPoints.at(shardChunks.first);
             else
                 endPoint = _loadEndPoints.getMongoSCycle();
-            for (const auto& chunks: shardChunks.second) {
-                //Push back queries that have an internal batch size of 10000
-                endPoint->push(tools::mtools::OpQueueQueryBulk::make(
-                        [this](tools::mtools::DbOp* op, tools::mtools::OpReturnCode status) {
-                                                    this->inputQueryCallBack(op, status);
-                                                },
-                    _ns,
-                    mongo::Query().minKey(chunks.min).maxKey(chunks.max).hint(shardKey),
-                        nullptr,
-                        0,
-                        BYTES_BATCH_SIZE));
-                ++_chunksRemaining;
-                //Separate operation as we cannot be sure processing hasn't started
-                ++_chunksTotal;
-            }
+            auto shardQueue = shardChunks.second;
+            _tpDispatchReads->queue([this, endPoint, &shardQueue]
+                 { this->dispatchChunksForRead(endPoint, shardQueue);});
         }
-        if (_chunksTotal == 0) {
-            size_t count =_mCluster.count(_ns);
-            auto exitCode = EXIT_SUCCESS;
-            if (count) {
-                std::cerr << "There are documents in " << _ns;
-                exitCode = EXIT_FAILURE;
-            }
-            else {
-                std::cerr << "There are no chunks in " << _ns << "(but there are "
-                        << count << "documents)";
-            }
-            std::cerr << "\nExiting" << std::endl;
-            exit(exitCode);
+        _tpDispatchReads->endWait();
+        _loadDone = true;
+        _tpDispatchReads.reset();
+    }
 
+    void MongoInputProcessor::dispatchChunksForRead(EndPointHolder::MongoEndPoint* endPoint,
+            const std::deque<tools::mtools::MongoCluster::ChunkRange>& shardChunks) {
+        for (const auto& chunks: shardChunks) {
+            //Push back queries that have an internal batch size of 10000
+            endPoint->push(tools::mtools::OpQueueQueryBulk::make(
+                    [this](tools::mtools::DbOp* op, tools::mtools::OpReturnCode status) {
+                                                this->inputQueryCallBack(op, status);
+                                            },
+                _ns,
+                //Shardkey must be added so that hashed shard keys are properly accounted for
+                mongo::Query().minKey(chunks.min).maxKey(chunks.max).hint(_shardKey),
+                    nullptr,
+                    0,
+                    BYTES_BATCH_SIZE));
+            ++_chunksRemaining;
+            //Separate operation as we cannot be sure processing hasn't started
         }
     }
 
@@ -182,7 +191,12 @@ namespace loader {
         //TODO: handle fails gracefully
         //status should currently terminate in the results object
         assert(status__ != tools::mtools::OpReturnCode::error);
-        _inputQueue.pushCheckMaxSize(std::move(dbOp->_data));
+        //Do not queue empty result sets
+        if (dbOp->_data.size()) {
+            _inputQueue.pushCheckMaxSize(std::move(dbOp->_data));
+        }
+        if (status__ == tools::mtools::OpReturnCode::ok)
+            --_chunksRemaining;
     }
 
     void MongoInputProcessor::waitEnd() {

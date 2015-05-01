@@ -26,6 +26,8 @@ namespace loader {
     using BsonPairDeque = std::deque<std::pair<mongo::BSONObj, mongo::BSONObj>>;
     using LoadQueues = std::vector<std::string>;
 
+    const std::string SHARDED_SPLITS[] = {"auto", "none", "force"};
+
     /*
      * These enums are written to the file system, the value/ type cannot be safely changed
      */

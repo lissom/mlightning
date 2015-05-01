@@ -50,8 +50,7 @@ namespace tools {
             BasicMongoEndPoint(MongoEndPointSettings settings, std::string connStr) :
                     _threadPool(settings.threadCount),
                     _opQueue(settings.maxQueueSize),
-                    _sleepTime(settings.sleepTime),
-                    _threadCount(settings.threadCount)
+                    _sleepTime(settings.sleepTime)
             {
                 std::string error;
                 _connStr = mongo::ConnectionString::parse(connStr, error);
@@ -87,8 +86,7 @@ namespace tools {
              */
             void start() {
                 assert(!isRunning());
-                for (size_t i = 0; i < _threadCount; ++i)
-                    _threadPool.queue([this] () {this->run();});
+                _threadPool.threadForEach([this] () {this->run();});
             }
 
             /**
@@ -216,7 +214,6 @@ namespace tools {
             mongo::ConnectionString _connStr;
             TOpQueue _opQueue;
             size_t _sleepTime;
-            size_t _threadCount;
         };
 
         /**
@@ -270,6 +267,13 @@ namespace tools {
             }
 
             /**
+             * Return the number of queues
+             */
+            size_t size() const {
+                return _epm.size();
+            }
+
+            /**
              * Hand out end points in a round robin, use for mongoS
              */
             MongoEndPoint* const getMongoSCycle() {
@@ -284,7 +288,7 @@ namespace tools {
             /**
              * Are the end points active?
              */
-            bool running() {
+            bool running() const {
                 return _started;
             }
 

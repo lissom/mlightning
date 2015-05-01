@@ -53,7 +53,8 @@ namespace loader {
 
     class MongoInputProcessor : public InputProcessorInterface {
     public:
-        static const size_t BYTES_BATCH_SIZE = 65 * 1024 *1024;
+        static const size_t BYTES_BATCH_SIZE = 65 * 1024 * 1024;
+        static const size_t MAX_DOCS_PER_CHUNK = 250000;
 
         MongoInputProcessor(Loader* const owner);
         ~MongoInputProcessor();
@@ -82,22 +83,22 @@ namespace loader {
          */
         void threadProcessLoop();
         /**
-         * Setup the threads to process the query results into the batcher
-         */
-        void setupProcessLoops();
-        /**
          * Sets up reading from the shards by chunk
          */
         void dispatchChunksForRead();
+        void dispatchChunksForRead(EndPointHolder::MongoEndPoint* endPoint,
+                    const std::deque<tools::mtools::MongoCluster::ChunkRange>& shardChunks);
         /**
          * Pushes the data from the database operation onto the input queue
          */
         void inputQueryCallBack(tools::mtools::DbOp*, tools::mtools::OpReturnCode);
 
         Loader* const _owner;
+        const mongo::BSONObj _shardKey;
         //Number of chunks that have not had their results queued, must be set before processing starts
         std::atomic<size_t> _chunksRemaining{};
-        size_t _chunksTotal{};
+        std::atomic<bool> _loadDone{};
+
         //Target input cluster
         tools::mtools::MongoCluster _mCluster;
         //Ends points to target input cluster
@@ -109,6 +110,8 @@ namespace loader {
         //Query results are stored here while waiting for a thread to process them
         tools::ConcurrentQueue<BsonContainer> _inputQueue;
         std::unique_ptr<tools::ThreadPool> _tpBatcher;
+        //Queue is used because the target queues are async and blocking
+        std::unique_ptr<tools::ThreadPool> _tpDispatchReads;
 
         bool _didDisableBalancerForNS;
 
@@ -157,6 +160,7 @@ namespace loader {
 
         Loader* const _owner;
         size_t _threads;
+        mongo::BSONObj _shardKey;
         const std::string _inputType;
         const std::string _loadDir;
         const std::string _fileRegex;
