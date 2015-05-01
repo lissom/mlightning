@@ -36,15 +36,11 @@ namespace tools {
             OpReturnCode opCheckError(Connection* conn) {
                 //TODO: mongo::BSONObj le = GetLastErrorDetailed
                 std::string error = conn->getLastError();
-                if (!error.empty()) {
-                    std::cerr << error << std::endl;
-                    return false;
-                }
-                return true;
+                return error.empty() ? OpReturnCode::ok : OpReturnCode::error;
             }
             OpReturnCode opCheckError(const mongo::WriteResult& result) {
                 if (!result.hasErrors())
-                    return true;
+                    return OpReturnCode::ok;
                 if (result.hasWriteConcernErrors()) {
                     std::cerr << "Write concern errors:\n";
                     for (auto&& ist : result.writeConcernErrors())
@@ -56,7 +52,7 @@ namespace tools {
                     for (auto&& ist : result.writeErrors())
                         std::cerr << tojson(ist) << std::endl;
                     std::cerr << std::endl;                }
-                return false;
+                return OpReturnCode::error;
             }
         }
 
@@ -70,7 +66,7 @@ namespace tools {
 
         OpReturnCode OpQueueBulkInsertUnorderedv24_0::run(Connection* const conn) {
             conn->insert(_ns, _data, _flags, _wc);
-            if (!_wc || !_wc->requiresConfirmation()) return true;
+            if (!_wc || !_wc->requiresConfirmation()) return OpReturnCode::ok;
             return opCheckError(conn);
         }
 
@@ -93,26 +89,28 @@ namespace tools {
 
         OpReturnCode OpQueueQueryBulk::run(Connection* const conn) {
             //todo: check out errors more (probably this is as good at it gets with the driver though)
-            /*
-             * This doesn't run the exhaust option (it masks it out)
-            conn->query([this](const mongo::BSONObj &obj) { this->enqueue(obj); },
-                    _ns, _query, _fieldsToReturn, _queryOptions);
-                    */
-            //Exhaust option is added because we are going to get all results immediately.
-            bool noErrors = true;
+            OpReturnCode result = OpReturnCode::ok;
             //std::cout << _ns << ":" << _query << std::endl;
-            auto c = conn->query(_ns, _query, 0, 0, _fieldsToReturn,
-                    _queryOptions);//_queryOptions | mongo::QueryOption_Exhaust); for some reason exhaust generates errors, need to investigate, not sure it's fixable (driver seems to not use exhaust either)
+            auto c = conn->query(_ns, _query, 0, 0, _fieldsToReturn, _queryOptions); // | mongo::QueryOption_Exhaust); //for some reason exhaust generates errors, need to investigate, not sure it's fixable (driver seems to not use exhaust either)
             while (c->more()) {
                 mongo::BSONObj obj = c->next();
                 if( strcmp(obj.firstElementFieldName(), "$err") == 0 ) {
                     std::string s = "error reading document: " + obj.toString();
                     std::cerr << s << std::endl;
-                    noErrors = false;
+                    result = OpReturnCode::error;
+                    break;
                 }
-                enqueue(obj);
+                _data.emplace_back(obj.getOwned());
+                _size += obj.objsize();
+                //Check to see if the batch size is exceeded and there are more docs from the db
+                //c-more() prevents any callbacks with zero docs when there were results
+                if (_callbackBatchSizeBytes && _data.size() >= _callbackBatchSizeBytes && c->more()) {
+                    callback(OpReturnCode::getMore);
+                    _data.clear();
+                    _size = 0;
+                }
             }
-            return noErrors;
+            return result;
         }
     } //namespace mtools
 }  //namespace tools

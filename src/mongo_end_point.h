@@ -168,8 +168,8 @@ namespace tools {
                                 std::cout << dbConn->toString() << ": Hitting" << std::endl;
                             }
                             */
-                            if(!currentOp->execute(dbConn))
-                                throw std::logic_error("Insert failed, terminating shoot out");
+                            if(currentOp->execute(dbConn) != OpReturnCode::ok)
+                                throw std::logic_error("Insert failed, exiting");
                         }
                         else {
                             if (_threadPool.endWait()) break;

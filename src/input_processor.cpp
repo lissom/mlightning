@@ -144,12 +144,16 @@ namespace loader {
             else
                 endPoint = _loadEndPoints.getMongoSCycle();
             for (const auto& chunks: shardChunks.second) {
+                //Push back queries that have an internal batch size of 10000
                 endPoint->push(tools::mtools::OpQueueQueryBulk::make(
                         [this](tools::mtools::DbOp* op, tools::mtools::OpReturnCode status) {
                                                     this->inputQueryCallBack(op, status);
                                                 },
                     _ns,
-                    mongo::Query().minKey(chunks.min).maxKey(chunks.max).hint(shardKey)));
+                    mongo::Query().minKey(chunks.min).maxKey(chunks.max).hint(shardKey),
+                        nullptr,
+                        0,
+                        BYTES_BATCH_SIZE));
                 ++_chunksRemaining;
                 //Separate operation as we cannot be sure processing hasn't started
                 ++_chunksTotal;
@@ -177,7 +181,7 @@ namespace loader {
         auto dbOp = dynamic_cast<tools::mtools::OpQueueQueryBulk*>(dbOp__);
         //TODO: handle fails gracefully
         //status should currently terminate in the results object
-        assert(status__);
+        assert(status__ != tools::mtools::OpReturnCode::error);
         _inputQueue.pushCheckMaxSize(std::move(dbOp->_data));
     }
 

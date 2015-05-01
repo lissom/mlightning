@@ -33,7 +33,7 @@ namespace tools {
         using WriteConcern = mongo::WriteConcern;
         constexpr auto* DEFAULT_WRITE_CONCERN = &WriteConcern::majority;
         //todo: change to using enum for return codes
-        using OpReturnCode = bool;
+        enum class OpReturnCode { ok, none, error, getMore };
         using Data = mongo::BSONObj;
         using DataQueue = std::vector<Data>;
         using Connection = mongo::DBClientBase;
@@ -51,21 +51,25 @@ namespace tools {
             /**
              * Executes the operation against the database connection
              * Does callback on completion
+             * Written like this to eventually return requeue operations
              */
             OpReturnCode execute(Connection* const conn) {
                 OpReturnCode retVal = run(conn);
-                _callBack(this, retVal);
+                callback(retVal);
                 return retVal;
             }
 
+        protected:
+            virtual OpReturnCode run(Connection* const conn) = 0;
+
+            void inline callback(OpReturnCode retVal) { _callBack(this, retVal); }
+
+        private:
             //fully qualified so this can be copy and pasted
             static void emptyCallBack(tools::mtools::DbOp* op__,
                     tools::mtools::OpReturnCode status__) {};
 
-            callBackFun _callBack;
-
-        protected:
-            virtual OpReturnCode run(Connection* const conn) = 0;
+            const callBackFun _callBack;
         };
 
         using DbOpPointer = std::unique_ptr<DbOp>;
@@ -80,8 +84,8 @@ namespace tools {
             virtual ~OpQueue() {
             }
 
-            virtual OpReturnCode push(DbOpPointer& dbOp) = 0;
-            virtual OpReturnCode pop(DbOpPointer& dbOp) = 0;
+            virtual bool push(DbOpPointer& dbOp) = 0;
+            virtual bool pop(DbOpPointer& dbOp) = 0;
             /**
              * Called when the queue should exit with no more work to do
              */
@@ -98,11 +102,11 @@ namespace tools {
                     _queue(queueSize) {}
             virtual ~OpQueueNoLock() final;
 
-            virtual inline OpReturnCode push(DbOpPointer& dbOp) final {
+            virtual inline bool push(DbOpPointer& dbOp) final {
                 return _queue.push(dbOp.release());
             }
 
-            virtual inline OpReturnCode pop(DbOpPointer& dbOp) final {
+            virtual inline bool pop(DbOpPointer& dbOp) final {
                 DbOp* rawptr;
                 bool result = _queue.pop(rawptr);
                 if (result) dbOp.reset(rawptr);
@@ -128,12 +132,12 @@ namespace tools {
             }
             virtual ~OpQueueLocking1() final;
 
-            virtual inline OpReturnCode push(DbOpPointer& dbOp) final {
+            virtual inline bool push(DbOpPointer& dbOp) final {
                 _queue.push(dbOp.release());
                 return true;
             }
 
-            virtual inline OpReturnCode pop(DbOpPointer& dbOp) final {
+            virtual inline bool pop(DbOpPointer& dbOp) final {
                 DbOp* rawptr;
                 bool result = _queue.pop(rawptr);
                 if (result) dbOp.reset(rawptr);
@@ -206,24 +210,28 @@ namespace tools {
                             const std::string ns,
                             const mongo::Query query,
                             const mongo::BSONObj* const fieldsToReturn = nullptr,
-                            const int queryOptions = 0) :
+                            const int queryOptions = 0,
+                            const size_t callbackBatchSizeBytes = 0) :
                             DbOp(callBack),
                             _ns(std::move(ns)),
                             _query(std::move(query)),
                             _fieldsToReturn(fieldsToReturn),
-                            _queryOptions(queryOptions) {}
+                            _queryOptions(queryOptions),
+                            _callbackBatchSizeBytes(callbackBatchSizeBytes) {}
 
             static DbOpPointer make(callBackFun callBack,
                                     const std::string& ns,
                                     const mongo::Query query,
-                                    const mongo::BSONObj* const fieldsToReturn = 0,
-                                    int queryOptions = 0)
+                                    const mongo::BSONObj* const fieldsToReturn = nullptr,
+                                    const int queryOptions = 0,
+                                    const size_t callbackBatchSizeBytes = 0)
             {
                 return DbOpPointer(new OpQueueQueryBulk(callBack,
                         std::move(ns),
                         std::move(query),
                         fieldsToReturn,
-                        queryOptions));
+                        queryOptions,
+                        callbackBatchSizeBytes));
             }
 
             std::deque<mongo::BSONObj>& data() { return _data; }
@@ -233,6 +241,9 @@ namespace tools {
             const mongo::Query _query;
             const mongo::BSONObj* const _fieldsToReturn;
             const int _queryOptions;
+            //Call the callback when X doc count is reached
+            const size_t _callbackBatchSizeBytes;
+            size_t _size{};
 
             mongo::Cursor _cursor;
             mongo::Connection _connection;
@@ -241,8 +252,6 @@ namespace tools {
         protected:
             OpReturnCode run(Connection* const conn);
 
-        private:
-            void enqueue(const mongo::BSONObj &obj) { _data.emplace_back(obj.getOwned()); }
         };
 
     }  //namespace mtools

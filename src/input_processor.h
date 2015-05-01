@@ -53,6 +53,8 @@ namespace loader {
 
     class MongoInputProcessor : public InputProcessorInterface {
     public:
+        static const size_t BYTES_BATCH_SIZE = 65 * 1024 *1024;
+
         MongoInputProcessor(Loader* const owner);
         ~MongoInputProcessor();
         /**
