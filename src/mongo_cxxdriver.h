@@ -20,42 +20,43 @@
 
 namespace mongo {
 
-    //TODO: if defs to support linking to different drivers
-    /*
-     * Contains definitions for the C++ driver.  Insulation against changes.
-     * We have effectively 3 and soon 4 C++ drivers.  Indirection is a very good thing.
-     * Changes auto_ptr to unique_ptr so mongo plays well with stl
-     */
-    const std::string uriStart = "mongodb://";
-    using Cursor = std::unique_ptr<mongo::DBClientCursor>;
-    using Connection = std::unique_ptr<mongo::DBClientConnection>;
-    inline ConnectionString parseConnectionOrThrow(std::string connStr) {
-        std::string error;
-        ConnectionString mongoConnStr = mongo::ConnectionString::parse(connStr, error);
-        if (!error.empty()) {
-            std::cerr << "Unable to parse: " << connStr << "\nExiting" << std::endl;
-            std::logic_error("Unable to parse string");
-        }
-        if (!mongoConnStr.isValid())
-            throw std::logic_error("Invalid mongo connection string");
-        return mongoConnStr;
+//TODO: if defs to support linking to different drivers
+/*
+ * Contains definitions for the C++ driver.  Insulation against changes.
+ * We have effectively 3 and soon 4 C++ drivers.  Indirection is a very good thing.
+ * Changes auto_ptr to unique_ptr so mongo plays well with stl
+ */
+const std::string uriStart = "mongodb://";
+using Cursor = std::unique_ptr<mongo::DBClientCursor>;
+using Connection = std::unique_ptr<mongo::DBClientConnection>;
+inline ConnectionString parseConnectionOrThrow(std::string connStr) {
+    std::string error;
+    ConnectionString mongoConnStr = mongo::ConnectionString::parse(connStr, error);
+    if (!error.empty()) {
+        std::cerr << "Unable to parse: " << connStr << "\nExiting" << std::endl;
+        std::logic_error("Unable to parse string");
     }
+    if (!mongoConnStr.isValid())
+        throw std::logic_error("Invalid mongo connection string");
+    return mongoConnStr;
+}
 
-    inline std::unique_ptr<DBClientBase> connectOrThrow(ConnectionString &connStr, double socketTimeout = 0) {
-        std::string error;
+inline std::unique_ptr<DBClientBase> connectOrThrow(ConnectionString &connStr,
+        double socketTimeout = 0) {
+    std::string error;
 
-        std::unique_ptr<DBClientBase> dbConn(connStr.connect(error, socketTimeout));
-        if (!error.empty()) {
-            std::cerr << "Unable to connect to " << connStr.toString() << ": " << error << std::endl;
-            throw std::logic_error("Unable to connect to mongodb");
-        }
-        return dbConn;
+    std::unique_ptr<DBClientBase> dbConn(connStr.connect(error, socketTimeout));
+    if (!error.empty()) {
+        std::cerr << "Unable to connect to " << connStr.toString() << ": " << error << std::endl;
+        throw std::logic_error("Unable to connect to mongodb");
     }
-    /*
-    std::ostream& operator<<(std::ostream& out, const std::vector<BSONObj>& bsonvec) {
-        for (auto&& ist: bsonvec)
-            out << tojson(ist) << "\n";
-        return out;
-    }
-    */
+    return dbConn;
+}
+/*
+ std::ostream& operator<<(std::ostream& out, const std::vector<BSONObj>& bsonvec) {
+ for (auto&& ist: bsonvec)
+ out << tojson(ist) << "\n";
+ return out;
+ }
+ */
 }  //namespace mongo

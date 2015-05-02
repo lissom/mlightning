@@ -19,11 +19,11 @@
 
 namespace loader {
 
-    /*
-     * Defines the endpoints so they no longer need to be called as templates and are ready for
-     * use by the loader
-     */
-    using EndPointHolder = tools::mtools::MongoEndPointHolder<>;
-    using EndPoint = EndPointHolder::MongoEndPoint;
+/*
+ * Defines the endpoints so they no longer need to be called as templates and are ready for
+ * use by the loader
+ */
+using EndPointHolder = mtools::MongoEndPointHolder<>;
+using EndPoint = EndPointHolder::MongoEndPoint;
 
 }  //namespace loader

@@ -19,6 +19,6 @@
 
 namespace loader {
 
-    void setProgramOptions(Loader::Settings& settings, int argc, char* argv[]);
+void setProgramOptions(Loader::Settings& settings, int argc, char* argv[]);
 
 }  //namespace tools

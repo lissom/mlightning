@@ -25,128 +25,137 @@
 
 namespace loader {
 
-    /*
-     * Iterface to fetch from a stream
-     * bool next(mongo::BSONObj* nextDoc) is used to allow for the greatest variety of input sources
-     */
-    class FileInputInterface {
-    public:
-        virtual ~FileInputInterface() {}
-        virtual void reset(tools::LocSegment segment) = 0;
-        /**
-         * If there is a document available, this function places the next one in the passed
-         * variable
-         * @return returns true if there is document available. False otherwise.
-         */
-        virtual bool next(mongo::BSONObj* const nextDoc) = 0;
-        /**
-         * Returns the position of the document.
-         */
-        virtual size_t pos() = 0;
-    };
-
+/*
+ * Iterface to fetch from a stream
+ * bool next(mongo::BSONObj* nextDoc) is used to allow for the greatest variety of input sources
+ */
+class FileInputInterface {
+public:
+    virtual ~FileInputInterface() {
+    }
+    virtual void reset(tools::LocSegment segment) = 0;
     /**
-     * Pointer returned by factory functions
+     * If there is a document available, this function places the next one in the passed
+     * variable
+     * @return returns true if there is document available. False otherwise.
      */
-    using FileInputInterfacePtr = std::unique_ptr<FileInputInterface>;
-
+    virtual bool next(mongo::BSONObj* const nextDoc) = 0;
     /**
-     * Factory function signature
+     * Returns the position of the document.
      */
-    using CreateFileInputFunction =
-            std::function<FileInputInterfacePtr(void)>;
+    virtual size_t pos() = 0;
+};
 
-    /*
-     * Factory
-     */
-    using InputFormatFactory = tools::RegisterFactory<FileInputInterfacePtr,
-            CreateFileInputFunction>;
+/**
+ * Pointer returned by factory functions
+ */
+using FileInputInterfacePtr = std::unique_ptr<FileInputInterface>;
 
-    /**
-     * Reads JSON from a file.
-     */
-    class InputFormatJson : public FileInputInterface {
-    public:
-        InputFormatJson() { };
-        virtual void reset(tools::LocSegment segment);
-        virtual bool next(mongo::BSONObj* const nextDoc);
-        virtual size_t pos() {
-            return _infile.tellg();
-        }
+/**
+ * Factory function signature
+ */
+using CreateFileInputFunction =
+std::function<FileInputInterfacePtr(void)>;
 
-        static FileInputInterfacePtr create() {
-            return FileInputInterfacePtr(new InputFormatJson());
-        }
+/*
+ * Factory
+ */
+using InputFormatFactory = tools::RegisterFactory<FileInputInterfacePtr,
+CreateFileInputFunction>;
 
-    private:
-        std::ifstream _infile;
-        std::string _line;
-        rapidjson::Reader _reader;
-        //line number is one indexed
-        unsigned long long _lineNumber{};
-        tools::LocSegment _locSegment;
+/**
+ * Reads JSON from a file.
+ */
+class InputFormatJson: public FileInputInterface {
+public:
+    InputFormatJson() {
+    }
+    ;
+    virtual void reset(tools::LocSegment segment);
+    virtual bool next(mongo::BSONObj* const nextDoc);
+    virtual size_t pos() {
+        return _infile.tellg();
+    }
 
-        const static bool _registerFactory;
+    static FileInputInterfacePtr create() {
+        return FileInputInterfacePtr(new InputFormatJson());
+    }
 
-        ParseRapidJsonEvents _events;
-        size_t _bufferSize{};
+private:
+    std::ifstream _infile;
+    std::string _line;
+    rapidjson::Reader _reader;
+    //line number is one indexed
+    unsigned long long _lineNumber { };
+    tools::LocSegment _locSegment;
 
-        size_t buffersize() { return _bufferSize; }
-    };
+    const static bool _registerFactory;
 
-    /**
-     * Reads BSON from a file.
-     */
-    class InputFormatBson : public FileInputInterface {
-    public:
-        InputFormatBson() : _buffer(mongo::BSONObjMaxUserSize) {};
-        virtual void reset(tools::LocSegment segment);
-        virtual bool next(mongo::BSONObj* const nextDoc);
-        virtual size_t pos() {
-            return _infile.tellg();
-        }
+    ParseRapidJsonEvents _events;
+    size_t _bufferSize { };
 
-        static FileInputInterfacePtr create() {
-            return FileInputInterfacePtr(new InputFormatBson());
-        }
+    size_t buffersize() {
+        return _bufferSize;
+    }
+};
 
-    private:
-        std::ifstream _infile;
-        //The document offset for error reporting
-        unsigned long long _docCount{};
-        tools::LocSegment _locSegment;
-        std::vector<char> _buffer;
+/**
+ * Reads BSON from a file.
+ */
+class InputFormatBson: public FileInputInterface {
+public:
+    InputFormatBson() :
+            _buffer(mongo::BSONObjMaxUserSize) {
+    }
+    ;
+    virtual void reset(tools::LocSegment segment);
+    virtual bool next(mongo::BSONObj* const nextDoc);
+    virtual size_t pos() {
+        return _infile.tellg();
+    }
 
-        const static bool _registerFactory;
-    };
+    static FileInputInterfacePtr create() {
+        return FileInputInterfacePtr(new InputFormatBson());
+    }
 
-    /**
-     * Reads for an mLightning formatted file
-     */
-    //TODO: use Source/Sink from snappy for less coping
-    class InputFormatMltn : public FileInputInterface {
-    public:
-        InputFormatMltn() {}
-        virtual void reset(tools::LocSegment segment);
-        virtual bool next(mongo::BSONObj* const nextDoc);
-        virtual size_t pos() {
-            return _bufferPos;
-        }
+private:
+    std::ifstream _infile;
+    //The document offset for error reporting
+    unsigned long long _docCount { };
+    tools::LocSegment _locSegment;
+    std::vector<char> _buffer;
 
-        static FileInputInterfacePtr create() {
-            return FileInputInterfacePtr(new InputFormatMltn());
-        }
+    const static bool _registerFactory;
+};
 
-    private:
-        //The document offset for error reporting
-        unsigned long long _docCount{};
-        tools::LocSegment _locSegment;
-        std::vector<char> _buffer;
-        size_t _bufferSize{};
+/**
+ * Reads for an mLightning formatted file
+ */
+//TODO: use Source/Sink from snappy for less coping
+class InputFormatMltn: public FileInputInterface {
+public:
+    InputFormatMltn() {
+    }
+    virtual void reset(tools::LocSegment segment);
+    virtual bool next(mongo::BSONObj* const nextDoc);
+    virtual size_t pos() {
+        return _bufferPos;
+    }
 
-        const static bool _registerFactory;
+    static FileInputInterfacePtr create() {
+        return FileInputInterfacePtr(new InputFormatMltn());
+    }
 
-        size_t _bufferPos{};
-    };
+private:
+    //The document offset for error reporting
+    unsigned long long _docCount { };
+    tools::LocSegment _locSegment;
+    std::vector<char> _buffer;
+    size_t _bufferSize { };
+
+    const static bool _registerFactory;
+
+    size_t _bufferPos { };
+};
 
 }  //namespace loader

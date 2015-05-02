@@ -14,19 +14,19 @@
 #include <string>
 
 namespace loader {
-    using SequenceId = uint32_t;
+using SequenceId = uint32_t;
 
-    /**
-     * Compresses the data in buffer and writes it to the steam
-     */
-    void writeToStream(std::ostream& out, const FileChunkType blockType,
-            const SequenceId sequenceId, const FileChunkFormat formatType, const mongo::BufBuilder& data);
+/**
+ * Compresses the data in buffer and writes it to the steam
+ */
+void writeToStream(std::ostream& out, const FileChunkType blockType, const SequenceId sequenceId,
+        const FileChunkFormat formatType, const mongo::BufBuilder& data);
 
-    /**
-     * Reads data from a stream into a data block.  The contents of data are destroyed
-     * Returns the buffer size
-     */
-    size_t readFromStream(std::istream& in, FileChunkType* blockType, SequenceId* sequenceId,
-            std::vector<char>* data);
+/**
+ * Reads data from a stream into a data block.  The contents of data are destroyed
+ * Returns the buffer size
+ */
+size_t readFromStream(std::istream& in, FileChunkType* blockType, SequenceId* sequenceId,
+        std::vector<char>* data);
 
 } /* namespace loader */

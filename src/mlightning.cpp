@@ -46,8 +46,8 @@ int main(int argc, char* argv[]) {
     try {
         settings.process();
     } catch (std::exception &e) {
-       std::cerr << "Unable to process settings: " << e.what() << std::endl;
-       return EXIT_FAILURE;
+        std::cerr << "Unable to process settings: " << e.what() << std::endl;
+        return EXIT_FAILURE;
     }
 
     std::cout << "Settings loaded" << std::endl;
