@@ -70,7 +70,7 @@ public:
         assert(_terminate || !_endWait || !queueSize());
         _terminate = true;
         _workNotify.notify_all();
-        joinAll();
+        join();
 
     }
 
@@ -117,7 +117,7 @@ public:
     /**
      * Joins all threads.  Does NOT stop them.
      */
-    void joinAll() {
+    void join() {
         for (auto& thread : _threads)
             if (thread.joinable())
                 thread.join();
@@ -126,14 +126,14 @@ public:
     /**
      * Get the terminate flag
      */
-    bool terminate() {
+    bool terminating() {
         return _terminate;
     }
 
     /**
      * Get the endWait flag
      */
-    bool endWait() {
+    bool ending() {
         return _endWait;
     }
 
@@ -152,6 +152,14 @@ public:
     void endWaitInitiate() {
         _endWait = true;
         _workNotify.notify_all();
+    }
+
+    /*
+     * Complete processing the queue and join all threads
+     */
+    void endWaitJoin() {
+        endWaitInitiate();
+        join();
     }
 
     /**

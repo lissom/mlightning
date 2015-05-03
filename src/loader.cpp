@@ -302,11 +302,11 @@ void Loader::setupOutputCluster() {
 
 dispatch::ChunkDispatchInterface* Loader::getNextFinalize() {
     tools::MutexLockGuard lg(_prepSetMutex);
-    if (_wf.empty())
+    if (_breathFirstChunks.empty())
         return nullptr;
     dispatch::ChunkDispatchInterface* ret;
-    ret = _wf.front();
-    _wf.pop_front();
+    ret = _breathFirstChunks.front();
+    _breathFirstChunks.pop_front();
     return ret;
 }
 
@@ -350,7 +350,7 @@ void Loader::dump() {
     inputProcessor->run();
 
     tools::ThreadPool tpFinalize(_settings.threads);
-    _wf = _chunkDispatch->getWaterFall();
+    _breathFirstChunks = _chunkDispatch->getBreathFirst();
     //Wait for all threads to finish processing segments
     inputProcessor->waitEnd();
     _timerRead.stop();
@@ -366,7 +366,7 @@ void Loader::dump() {
      *  Wait for all threads to shutdown prior to exit.
      */
     tpFinalize.endWaitInitiate();
-    tpFinalize.joinAll();
+    tpFinalize.join();
 }
 
 void Loader::load() {
@@ -393,7 +393,7 @@ void Loader::load() {
      * waiting.  The general assumption is that there are more chunks than threads available
      */
     tools::ThreadPool tpFinalize(_settings.threads);
-    _wf = _chunkDispatch->getWaterFall();
+    _breathFirstChunks = _chunkDispatch->getBreathFirst();
     //Wait for all threads to finish processing segments
     inputProcessor->waitEnd();
     _timerRead.stop();
@@ -409,7 +409,7 @@ void Loader::load() {
      *  Wait for all threads to shutdown prior to exit.
      */
     tpFinalize.endWaitInitiate();
-    tpFinalize.joinAll();
+    tpFinalize.join();
 
     _endPoints->gracefulShutdownJoin();
 }

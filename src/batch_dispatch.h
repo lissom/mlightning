@@ -132,7 +132,7 @@ CreateDispatchFunction
  */
 class ChunkDispatcher {
 public:
-    using OrderedWaterFall = std::deque<ChunkDispatchInterface*>;
+    using OrderedBreathFirst = std::deque<ChunkDispatchInterface*>;
     using Key = mtools::ChunkIndexKey;
     using Value = ChunkDispatchPointer;
     using LoadPlan = tools::Index<Key, Value, tools::BsonCompare>;
@@ -152,7 +152,7 @@ public:
 
     ~ChunkDispatcher() {
         _tp.terminateInitiate();
-        _tp.joinAll();
+        _tp.join();
     }
 
     Value& at(const Key& key) {
@@ -194,7 +194,7 @@ public:
      * this ns.
      * This ensures that there is the least amount of wait time as possible
      */
-    OrderedWaterFall getWaterFall();
+    OrderedBreathFirst getBreathFirst();
 
     const size_t queueSize() const {
         return _settings.ramQueueBatchSize;

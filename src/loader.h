@@ -194,7 +194,7 @@ private:
 
     size_t _ramMax;
     std::atomic<unsigned long long> _writeOps { };
-    dispatch::ChunkDispatcher::OrderedWaterFall _wf;
+    dispatch::ChunkDispatcher::OrderedBreathFirst _breathFirstChunks;
     tools::Mutex _prepSetMutex;bool _disableCollectionBalancing = false;
 
     /*

@@ -89,25 +89,25 @@ private:
      */
     void dispatchChunksForRead();
     void dispatchChunksForRead(EndPointHolder::MongoEndPoint* endPoint,
-            const std::deque<mtools::ChunkRange>& shardChunks);
+            const std::deque<mtools::ChunkRange>* shardChunks);
     /**
      * Pushes the data from the database operation onto the input queue
      */
     void inputQueryCallBack(mtools::DbOp*, mtools::OpReturnCode);
 
     Loader* const _owner;
-    const mongo::BSONObj _shardKey;
+    //Input namespace
+    const std::string _ns;
+    //Target input cluster
+    mtools::MongoCluster _mCluster;
+    mongo::BSONObj _shardKey;
     //Number of chunks that have not had their results queued, must be set before processing starts
     std::atomic<size_t> _chunksRemaining { };
     std::atomic<bool> _loadDone { };
     //std::deque<mtools::ShardName, int> _shardStatus;
 
-    //Target input cluster
-    mtools::MongoCluster _mCluster;
     //Ends points to target input cluster
     EndPointHolder _loadEndPoints;
-    //Input namespace
-    const std::string _ns;
     //Input chunks by shard, is drained eventually
     mtools::MongoCluster::ShardChunks _inputShardChunks;
     //Query results are stored here while waiting for a thread to process them
@@ -212,7 +212,8 @@ private:
     int _keyFieldsCount;
     docbuilder::InputChunkBatcherHolder _inputAggregator;
     mongo::BSONObjBuilder *_extra = NULL;
-    mongo::BSONObj _docShardKey;bool _added_id { };
+    mongo::BSONObj _docShardKey;
+    bool _added_id { };
 
 };
 

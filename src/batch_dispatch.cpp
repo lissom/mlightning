@@ -68,25 +68,25 @@ void ChunkDispatcher::init() {
     assert(_loadPlan.size());
 }
 
-ChunkDispatcher::OrderedWaterFall ChunkDispatcher::getWaterFall() {
+ChunkDispatcher::OrderedBreathFirst ChunkDispatcher::getBreathFirst() {
     std::unordered_map<mtools::ShardName, std::deque<ChunkDispatchInterface*>> chunksort;
     for (auto& i : _mCluster.nsChunks(_ns))
         chunksort[std::get<1>(i)->first].emplace_back(getDispatchForChunk(std::get<0>(i)));
-    OrderedWaterFall wf;
+    OrderedBreathFirst bf;
     for (;;) {
         bool added = false;
         for (auto& i : chunksort) {
             auto& q = i.second;
             if (q.size()) {
                 added = true;
-                wf.push_back(q.back());
+                bf.push_back(q.back());
                 q.pop_back();
             }
         }
         if (!added)
             break;
     }
-    return wf;
+    return bf;
 }
 
 void RAMQueueDispatch::finalize() {

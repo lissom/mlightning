@@ -1,5 +1,8 @@
 #The hash test requires --dropDB 1 is required for verificatio to work as hashing is database wide
 #The hash test requires that a mongoS which can access the md5s is on localhost:27017 on the machine this script is ran on
+#Do NOT use connection strings for database connections, use the form perferred by the shell
+#It is recommended to use MONGO1 === MONGO2 (this is necessary for the MD5 verification)
+#Note that the MD5 tests assume that the non-sharded test cases take place on the first shard, or the test will have fasle results
 OPTIONS=
 DRY_RUN=
 DO_DROP=1
@@ -9,12 +12,6 @@ if [ ! -z ${DRY_RUN} ] && [ ${DRY_RUN} -eq 1 ]; then
   DO_REMOVE_DUMP=0
 fi
 ML_PATH=/home/charlie/git/mlightning/Debug/
-MONGO1=127.0.0.1:27017
-MONGO2=${MONGO1}
-#It is recommended to use MONGO1 === MONGO2
-#MONGO1=mongodb://127.0.0.1:27018
-#MONGO2=$MONGO1
-#MONGO2=mongodb://127.0.0.1:27019
 DATA_DIR=/home/charlie/serialshort/
 DUMP_PATH=/tmp/mlightning_test/
 DIRECT_IN=1
@@ -52,7 +49,7 @@ fi
 dropdatabases() {
 if [ "${MONGO1}" = "${MONGO2}" ]; then
 echo "Dropping databases this test created."
-mongo --nodb --norc << EOF
+mongo ${MONGO1} --norc << EOF
 var toDrop = ["import", "mirror", "mltnimport", "trans"]
 var mongos=new Mongo()
 for (i = toDrop.length - 1; i >= 0; --i) {
@@ -87,7 +84,7 @@ runtest "Reverting back to original shard key" ${ML_PATH}mlightning ${OPTIONS} -
 
 #TODO: pump this into /tmp and use sed to set the variables
 if [ "${MONGO1}" = "${MONGO2}" ]; then
-runtest "Verifing restarding (The verify is only valid if all operations have taken place on the 127.0.0.1:27017 cluster)" mongo --nodb --norc << EOF
+runtest "Verifing restarding (The verify is only valid if all operations have taken place on the 127.0.0.1:27017 or the first shard of the cluster)" mongo ${MONOG1} --norc << EOF
 var sourcedb="import"
 var sourcecoll="original"
 var targetdb="mirror"
@@ -106,16 +103,19 @@ if(statsimport.count < 1) {
 //In theory this shouldn't be an issue if anything other than w:0 is used for the final write
 if (statsimport.count != statsmirror.count) {
     print("Waiting for count of records in new collection to stablize (in case w:0 was used)")
+    //Check to see if the count is increasing over 1 second
     do {
+        var oldcount=statsmirror.count;
         sleep(1)
-        var oldstats=statsmirror;
         statsmirror=shard.getDB(targetdb).getCollection(targetcoll).stats()
-    } while(oldstats.count != statsmirror.count)
-    print("New collection stablized over 1s, if this test still fails manual verification is suggested")
+	print(".")
+    } while(oldcount != statsmirror.count)
+    print(targetdb + "." + targetcoll + " stablized it's own count over a interval 1s, if this test still fails manual verification is suggested")
     if (statsimport.count != statsmirror.count) {
         print("Counts are not equal")
-        printjson(statsimport.count)
-        printjson(statsmirror.count)
+	print(shardHost)
+        print(sourcedb + "." + sourcecoll + ":" statsimport.count)
+        print(targetdb + "." + targetcoll + ":" statsmirror.count)
         quit(2)
     }
 }
@@ -141,7 +141,7 @@ runtest "Dumping the database" ${ML_PATH}mlightning ${OPTIONS} --input.uri ${MON
 runtest "Restoring the database" ${ML_PATH}mlightning ${OPTIONS} --shardKey '{"_id":"hashed"}' --output.uri ${MONGO1} --output.direct ${DIRECT_OUT} --output.db mltnimport --output.coll mirror --inputType mltn --loadPath ${DUMP_PATH}
 removedumppath
 if [ "${MONGO1}" = "${MONGO2}" ]; then
-runtest "Verifying dump and restore (The verify is only valid if all operations have taken place on the 127.0.0.1:27017 cluster)" mongo --nodb --norc << EOF
+runtest "Verifying dump and restore (The verify is only valid if all operations have taken place on the 127.0.0.1:27017 or the first shard of the cluster)" mongo ${MONOG1} --norc << EOF
 var sourcedb="import"
 var sourcecoll="original"
 var targetdb="mltnimport"
@@ -191,17 +191,40 @@ EOF
 fi
 } #runfiletest
 
+shardedtest()
+{
+printf "\nStarting Sharded Tests\n"
+SHARDED=1
+MONGO1=127.0.0.1:27017
+MONGO2=${MONGO1}
+runloadingtest
+runfiletest
+if [ ${DO_DROP} -eq 1 ]; then
+dropdatabases
+fi
+}
+
+replicatests() {
+printf "\nStarting Replica Tests\n"
+SHARDED=0
+MONGO1=127.0.0.1:27018
+MONGO2=$MONGO1
+runloadingtest
+runfiletest
+if [ ${DO_DROP} -eq 1 ]; then
+dropdatabases
+fi
+}
+
 #
 #Start run
 #
-printf "\nStarting Tests\n"
-runloadingtest
-runfiletest
+shardedtests
+replicatests
+
+printf "\nThere are no tests for unsharded collections in a sharded cluster\n"
 
 #if [ -z ${DRY_RUN} ] || [ ${DRY_RUN} -eq 0 ]; then
 printf "${SUCCESS}`date`\n***\n***\n***    All test have successfully completed!\n***\n***${NOCOLOR}\n"
 #fi
-if [ ${DO_DROP} -eq 1 ]; then
-dropdatabases
-fi
 echo "Exiting now"

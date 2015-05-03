@@ -99,7 +99,7 @@ public:
     void gracefulShutdownJoin() {
         _opQueue.endWait();
         _threadPool.endWaitInitiate();
-        joinAll();
+        join();
     }
 
     /**
@@ -113,8 +113,8 @@ public:
      * Wait for all threads to be joined
      * Should NOT be called on it's own, this will NOT stop the threads
      */
-    void joinAll() {
-        _threadPool.joinAll();
+    void join() {
+        _threadPool.join();
     }
 
     /**
@@ -154,7 +154,7 @@ public:
              bool firstmiss = true;
              size_t missCount {};
              */
-            while (!_threadPool.terminate()) {
+            while (!_threadPool.terminating()) {
                 if (pop(currentOp)) {
                     /* For lockless
                      if (miss) {
@@ -166,7 +166,7 @@ public:
                     if (currentOp->execute(dbConn) != OpReturnCode::ok)
                         throw std::logic_error("Insert failed, exiting");
                 } else {
-                    if (_threadPool.endWait())
+                    if (_threadPool.ending())
                         break;
                     /*
                      //TODO: log levels.  If you are seeing misses std::cout is cheap
@@ -294,6 +294,11 @@ public:
         _started = true;
         for (auto&& i : _epm)
             i.second->start();
+    }
+
+    void join() {
+        for (auto&& ep : _epm)
+            ep.second->join();
     }
 
     /**

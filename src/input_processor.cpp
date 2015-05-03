@@ -23,7 +23,7 @@
 
 namespace loader {
 
-const size_t MONGOINPUT_DEFAULT_MAX_SIZE = 100;
+const size_t MONGOINPUT_QUEUE_BASE_SIZE = 100;
 
 const bool MongoInputProcessor::_registerFactory = InputProcessorFactory::registerCreator(
         INPUT_MONGO, MongoInputProcessor::create);
@@ -35,10 +35,13 @@ const bool FileInputProcessor::_registerFactoryMltn = InputProcessorFactory::reg
         INPUT_MLTN, FileInputProcessor::create);
 
 MongoInputProcessor::MongoInputProcessor(Loader* const owner) :
-        _owner(owner), _shardKey(_mCluster.getNs(_ns).key), _mCluster(_owner->settings().input.uri), _loadEndPoints(
-                _owner->settings().input.endPoints, _mCluster), _ns(_owner->settings().input.ns()), _tpBatcher(
-                new tools::ThreadPool(_owner->settings().threads + 2)), _didDisableBalancerForNS(
-                _mCluster.sharded() && _mCluster.isBalancingEnabled(_owner->settings().input.ns())) {
+        _owner(owner), _ns(_owner->settings().input.ns()), _mCluster(_owner->settings().input.uri),
+        //If we throw an e_out_of_range error here it should only be for sharded clusers with non-sharded ns
+        //Ideall that is fixed in mCluster, not by a hack here
+        _shardKey(_mCluster.sharded() ? _mCluster.getNs(_ns).key : BSON("_id" << 1)),
+        _loadEndPoints(_owner->settings().input.endPoints, _mCluster),
+        _tpBatcher(new tools::ThreadPool(_owner->settings().threads + 2)), _didDisableBalancerForNS(
+                _mCluster.sharded() && _mCluster.isBalancingEnabled(_ns)) {
     if (_mCluster.count(_ns) == 0) {
         std::cerr << "There are no documents in " << _ns << "\nExiting" << std::endl;
         //arguable if it's failure, but hey
@@ -48,7 +51,7 @@ MongoInputProcessor::MongoInputProcessor(Loader* const owner) :
         if (!_mCluster.disableBalancing(_owner->settings().input.ns()))
             exit(EXIT_FAILURE);
     }
-    _inputQueue.setSizeMax(MONGOINPUT_DEFAULT_MAX_SIZE);
+    _inputQueue.setSizeMax(MONGOINPUT_QUEUE_BASE_SIZE);
 }
 
 MongoInputProcessor::~MongoInputProcessor() {
@@ -101,9 +104,9 @@ void MongoInputProcessor::run() {
     size_t chunks { };
     for (auto&& shardChunks : _inputShardChunks)
         chunks += shardChunks.second.size();
-    std::cout << "Chunks: " << chunks << "\nKicking off run" << std::endl;
+    std::cout << " Chunks: " << chunks << "\nKicking off run" << std::endl;
     //Ensure loadEndPoints are running, they are required to fill all queries for the _tpBatcher to end
-    _tpBatcher->endWait();
+    _tpBatcher->endWaitInitiate();
 }
 
 void MongoInputProcessor::displayChunkStats() {
@@ -124,8 +127,6 @@ void MongoInputProcessor::threadProcessLoop() {
             if (_loadDone == true && _chunksRemaining == 0) {
                 //Double check to ensure variables were set after pop was false
                 if (gotLoadDone) {
-                    std::cout << "MongoInputProcessor::threadProcessLoop: Exiting work thread"
-                            << std::endl;
                     break;
                 } else
                     gotLoadDone = true;
@@ -143,7 +144,7 @@ void MongoInputProcessor::threadProcessLoop() {
 }
 
 void MongoInputProcessor::dispatchChunksForRead() {
-    _tpDispatchReads.reset(new tools::ThreadPool(_loadEndPoints.size()));
+    _tpDispatchReads.reset(new tools::ThreadPool(_inputShardChunks.size()));
     if (_shardKey.isEmpty())
         throw std::logic_error(
                 "MongoInputProcessor::dispatchChunksForRead - shardKey to hint on cannot be empty.");
@@ -156,18 +157,18 @@ void MongoInputProcessor::dispatchChunksForRead() {
             endPoint = _loadEndPoints.at(shardChunks.first);
         else
             endPoint = _loadEndPoints.getMongoSCycle();
-        auto shardQueue = shardChunks.second;
-        _tpDispatchReads->queue([this, endPoint, &shardQueue]
+        auto shardQueue = &shardChunks.second;
+        _tpDispatchReads->queue([this, endPoint, shardQueue]
         {   this->dispatchChunksForRead(endPoint, shardQueue);});
     }
-    _tpDispatchReads->endWait();
+    _tpDispatchReads->endWaitJoin();
     _loadDone = true;
     _tpDispatchReads.reset();
 }
 
 void MongoInputProcessor::dispatchChunksForRead(EndPointHolder::MongoEndPoint* endPoint,
-        const std::deque<mtools::ChunkRange>& shardChunks) {
-    for (const auto& chunks : shardChunks) {
+        const std::deque<mtools::ChunkRange>* shardChunks) {
+    for (const auto& chunks : *shardChunks) {
         //Push back queries that have an internal batch size of 10000
         endPoint->push(
                 mtools::OpQueueQueryBulk::make(
@@ -196,9 +197,8 @@ void MongoInputProcessor::inputQueryCallBack(mtools::DbOp* dbOp__, mtools::OpRet
 }
 
 void MongoInputProcessor::waitEnd() {
+    _tpBatcher->join();
     _loadEndPoints.gracefulShutdownJoin();
-    _tpBatcher->endWaitInitiate();
-    _tpBatcher->joinAll();
     if (_chunksRemaining) {
         std::cerr << "Not all chunks were processed (remaining = " << _chunksRemaining
                 << ")\nExiting" << std::endl;
@@ -259,7 +259,7 @@ void FileInputProcessor::run() {
                 size_t pos { };
                 for (pos = 0; pos < filerec.size; pos += sizePerThread)
                     _locSegMapping.emplace_back(filerec.name, pos, pos + sizePerThread);
-                //always have a "to end" for every file for consistancy
+                //always have a "to end" for every file for consistency
                 _locSegMapping.back().end = 0;
             } else
                 _locSegMapping.emplace_back(filerec.name, 0, 0);
@@ -299,7 +299,7 @@ void FileInputProcessor::threadProcessLoop() {
 }
 
 void FileInputProcessor::waitEnd() {
-    _tpBatcher->joinAll();
+    _tpBatcher->join();
     //Make sure that all segments have been processed, invariant
     if (_processedSegments != _locSegMapping.size()) {
         std::cerr << "Error: not all segments processed. Total segments: " << _locSegMapping.size()

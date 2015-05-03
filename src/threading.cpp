@@ -21,9 +21,9 @@ void ThreadPool::_workLoop() {
     MutexUniqueLock lock(_workMutex, std::defer_lock);
     for (;;) {
         lock.lock();
-        _workNotify.wait(lock, [this]() {return !this->_workQueue.empty() || this->terminate()
-            || endWait();});
-        if (terminate() || (_workQueue.empty() && endWait()))
+        _workNotify.wait(lock, [this]() {return !this->_workQueue.empty() || this->terminating()
+            || ending();});
+        if (terminating() || (_workQueue.empty() && ending()))
             break;
         ThreadFunction func = std::move(_workQueue.front());
         _workQueue.pop_front();
