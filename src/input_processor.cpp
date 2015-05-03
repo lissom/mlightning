@@ -104,7 +104,7 @@ void MongoInputProcessor::run() {
     size_t chunks { };
     for (auto&& shardChunks : _inputShardChunks)
         chunks += shardChunks.second.size();
-    std::cout << " Chunks: " << chunks << "\nKicking off run" << std::endl;
+    std::cout << "\nChunks: " << chunks << "\nKicking off run" << std::endl;
     //Ensure loadEndPoints are running, they are required to fill all queries for the _tpBatcher to end
     _tpBatcher->endWaitInitiate();
 }
@@ -196,7 +196,7 @@ void MongoInputProcessor::inputQueryCallBack(mtools::DbOp* dbOp__, mtools::OpRet
         --_chunksRemaining;
 }
 
-void MongoInputProcessor::waitEnd() {
+void MongoInputProcessor::join() {
     _tpBatcher->join();
     _loadEndPoints.gracefulShutdownJoin();
     if (_chunksRemaining) {
@@ -298,7 +298,7 @@ void FileInputProcessor::threadProcessLoop() {
     }
 }
 
-void FileInputProcessor::waitEnd() {
+void FileInputProcessor::join() {
     _tpBatcher->join();
     //Make sure that all segments have been processed, invariant
     if (_processedSegments != _locSegMapping.size()) {

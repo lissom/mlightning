@@ -32,7 +32,7 @@ public:
     }
     ;
     virtual void run() = 0;
-    virtual void waitEnd() = 0;
+    virtual void join() = 0;
 };
 
 /**
@@ -67,7 +67,7 @@ public:
     /**
      * Returns when all processing is completed
      */
-    void waitEnd() override;
+    void join() override;
 
     static InputProcessorInterfacePtr create(Loader* const loader) {
         return InputProcessorInterfacePtr(new MongoInputProcessor(loader));
@@ -140,7 +140,7 @@ public:
      * Returns when all input is finished
      * Calling this function before calling run is undefined
      */
-    void waitEnd() override;
+    void join() override;
 
     static std::unique_ptr<InputProcessorInterface> create(Loader* const loader) {
         return std::unique_ptr<InputProcessorInterface>(new FileInputProcessor(loader));

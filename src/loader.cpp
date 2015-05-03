@@ -352,7 +352,7 @@ void Loader::dump() {
     tools::ThreadPool tpFinalize(_settings.threads);
     _breathFirstChunks = _chunkDispatch->getBreathFirst();
     //Wait for all threads to finish processing segments
-    inputProcessor->waitEnd();
+    inputProcessor->join();
     _timerRead.stop();
 
     std::cout << "Entering finalize phase" << std::endl;
@@ -395,7 +395,7 @@ void Loader::load() {
     tools::ThreadPool tpFinalize(_settings.threads);
     _breathFirstChunks = _chunkDispatch->getBreathFirst();
     //Wait for all threads to finish processing segments
-    inputProcessor->waitEnd();
+    inputProcessor->join();
     _timerRead.stop();
 
     std::cout << "Entering finalize phase" << std::endl;
