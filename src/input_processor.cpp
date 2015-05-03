@@ -83,18 +83,7 @@ void MongoInputProcessor::run() {
         _mCluster.shardCollection(_ns, synthShardKey, false, splits, true);
         _inputShardChunks = _mCluster.getShardChunks(_ns);
         assert(_inputShardChunks.size() > 0);
-    } else {
-        //Even if sharded, shard anyway if "forced" or "auto" and the chunk count is poor
-        size_t chunks { };
-        for (auto&& shardChunks : _inputShardChunks) {
-            chunks += shardChunks.second.size();
-            if ((_mCluster.count(_ns) / chunks > MAX_DOCS_PER_CHUNK
-                    && _owner->settings().shardedSplits == "auto")
-                    || _owner->settings().shardedSplits == "force") {
-            }
-        }
     }
-    //displayChunkStats();
     _tpBatcher->queue([this] {this->_loadEndPoints.start();});
     _tpBatcher->queue([this] {this->dispatchChunksForRead();});
     _tpBatcher->queue([this] {this->threadProcessLoop();}, -2);
@@ -105,6 +94,7 @@ void MongoInputProcessor::run() {
     for (auto&& shardChunks : _inputShardChunks)
         chunks += shardChunks.second.size();
     std::cout << "\nChunks: " << chunks << "\nKicking off run" << std::endl;
+    //displayChunkStats();
     //Ensure loadEndPoints are running, they are required to fill all queries for the _tpBatcher to end
     _tpBatcher->endWaitInitiate();
 }
@@ -151,24 +141,54 @@ void MongoInputProcessor::dispatchChunksForRead() {
     if (_inputShardChunks.empty())
         throw std::logic_error(
                 "MongoInputProcessor::dispatchChunksForRead - no chunks found for reading");
-    for (auto&& shardChunks : _inputShardChunks) {
-        EndPointHolder::MongoEndPoint* endPoint;
-        if (_loadEndPoints.directLoad())
-            endPoint = _loadEndPoints.at(shardChunks.first);
-        else
-            endPoint = _loadEndPoints.getMongoSCycle();
-        auto shardQueue = &shardChunks.second;
-        _tpDispatchReads->queue([this, endPoint, shardQueue]
-        {   this->dispatchChunksForRead(endPoint, shardQueue);});
+    for (auto& shardChunks : _inputShardChunks) {
+        static_assert(std::is_same<std::remove_reference<decltype(shardChunks)>::type,
+                decltype(_inputShardChunks)::value_type>::value,
+                "A proxy type cannot be returned, as this needs to be referenced to outside of the "
+                "loop by another thread.");
+        _tpDispatchReads->queue([this, &shardChunks]
+        {   this->dispatchChunksForRead(shardChunks);});
     }
     _tpDispatchReads->endWaitJoin();
     _loadDone = true;
     _tpDispatchReads.reset();
 }
 
-void MongoInputProcessor::dispatchChunksForRead(EndPointHolder::MongoEndPoint* endPoint,
-        const std::deque<mtools::ChunkRange>* shardChunks) {
-    for (const auto& chunks : *shardChunks) {
+void MongoInputProcessor::dispatchChunksForRead(mtools::MongoCluster::ShardChunks::value_type& shardChunks) {
+    //Makes sure this shard holds valid data for this collection, or return
+    if (!shardChunks.second.size())
+        return;
+    /*
+     * If the cluster is sharded, check to see if it has good distribution
+     * If not, synthetic shard it and use those chunks (in case the splits didn't happen)
+     */
+    if (_mCluster.sharded() && _owner->settings().shardedSplits == SHARDED_SPLITS_NONE) {
+        std::unique_ptr<mongo::DBClientBase> dbConn = mongo::connectOrThrow(
+                mongo::parseConnectionOrThrow(_mCluster.getConn(shardChunks.first)));
+        if (_owner->settings().shardedSplits == SHARDED_SPLITS_FORCE ||
+                dbConn->count(_ns) / shardChunks.second.size()> MAX_DOCS_PER_CHUNK) {
+            mongo::BSONObj split;
+            //Find splits, if it fails, just use the ones we have and move on if force isn't true
+            if (dbConn->runCommand("admin", BSON("splitVector" << _ns << "keyPattern" << _shardKey <<
+                    "maxChunkSizeBytes" << SPLIT_SIZE_BYTES), split)) {
+
+            } else if (_owner->settings().shardedSplits == SHARDED_SPLITS_FORCE) {
+                std::cerr << "Running splitVector failed, force splits requested: " << split
+                        << "\nExiting" << std::endl;
+                exit(EXIT_FAILURE);
+            } else {
+                std::cerr << "Running splitVector failed, force splits requested: " << split
+                        << ". Using config supplied split points" << std::endl;
+            }
+            HERE
+        }
+    }
+    EndPointHolder::MongoEndPoint* endPoint;
+    if (_loadEndPoints.directLoad())
+        endPoint = _loadEndPoints.at(shardChunks.first);
+    else
+        endPoint = _loadEndPoints.getMongoSCycle();
+    for (const auto& chunks : shardChunks.second) {
         //Push back queries that have an internal batch size of 10000
         endPoint->push(
                 mtools::OpQueueQueryBulk::make(
@@ -179,7 +199,6 @@ void MongoInputProcessor::dispatchChunksForRead(EndPointHolder::MongoEndPoint* e
                         mongo::Query().minKey(chunks.min).maxKey(chunks.max).hint(_shardKey),
                         nullptr, 0, BATCH_SIZE_BYTES));
         ++_chunksRemaining;
-        //Separate operation as we cannot be sure processing hasn't started
     }
 }
 

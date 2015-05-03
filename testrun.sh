@@ -191,7 +191,7 @@ EOF
 fi
 } #runfiletest
 
-shardedtest()
+shardedtests()
 {
 printf "\nStarting Sharded Tests\n"
 SHARDED=1
@@ -227,4 +227,3 @@ printf "\nThere are no tests for unsharded collections in a sharded cluster\n"
 #if [ -z ${DRY_RUN} ] || [ ${DRY_RUN} -eq 0 ]; then
 printf "${SUCCESS}`date`\n***\n***\n***    All test have successfully completed!\n***\n***${NOCOLOR}\n"
 #fi
-echo "Exiting now"

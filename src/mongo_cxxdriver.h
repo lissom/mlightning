@@ -24,24 +24,22 @@ namespace mongo {
 /*
  * Contains definitions for the C++ driver.  Insulation against changes.
  * We have effectively 3 and soon 4 C++ drivers.  Indirection is a very good thing.
- * Changes auto_ptr to unique_ptr so mongo plays well with stl
  */
 const std::string uriStart = "mongodb://";
 using Cursor = std::unique_ptr<mongo::DBClientCursor>;
 using Connection = std::unique_ptr<mongo::DBClientConnection>;
-inline ConnectionString parseConnectionOrThrow(std::string connStr) {
+inline ConnectionString parseConnectionOrThrow(const std::string &connStr) {
     std::string error;
     ConnectionString mongoConnStr = mongo::ConnectionString::parse(connStr, error);
     if (!error.empty()) {
-        std::cerr << "Unable to parse: " << connStr << "\nExiting" << std::endl;
-        std::logic_error("Unable to parse string");
+        std::logic_error("Unable to parse connection string");
     }
     if (!mongoConnStr.isValid())
         throw std::logic_error("Invalid mongo connection string");
     return mongoConnStr;
 }
 
-inline std::unique_ptr<DBClientBase> connectOrThrow(ConnectionString &connStr,
+inline std::unique_ptr<DBClientBase> connectOrThrow(const ConnectionString &connStr,
         double socketTimeout = 0) {
     std::string error;
 
@@ -52,11 +50,4 @@ inline std::unique_ptr<DBClientBase> connectOrThrow(ConnectionString &connStr,
     }
     return dbConn;
 }
-/*
- std::ostream& operator<<(std::ostream& out, const std::vector<BSONObj>& bsonvec) {
- for (auto&& ist: bsonvec)
- out << tojson(ist) << "\n";
- return out;
- }
- */
 }  //namespace mongo

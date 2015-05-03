@@ -26,7 +26,10 @@ using BsonQ = std::deque<mongo::BSONObj>;
 using BsonPairDeque = std::deque<std::pair<mongo::BSONObj, mongo::BSONObj>>;
 using LoadQueues = std::vector<std::string>;
 
-const std::string SHARDED_SPLITS[] = { "auto", "none", "force" };
+const char SHARDED_SPLITS_AUTO[] = "auto";
+const char SHARDED_SPLITS_NONE[] = "none";
+const char SHARDED_SPLITS_FORCE[] = "force";
+const std::string SHARDED_SPLITS[] = { SHARDED_SPLITS_AUTO, SHARDED_SPLITS_NONE, SHARDED_SPLITS_FORCE };
 
 /*
  * These enums are written to the file system, the value/ type cannot be safely changed

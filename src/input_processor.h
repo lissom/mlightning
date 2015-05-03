@@ -30,7 +30,6 @@ class InputProcessorInterface {
 public:
     virtual ~InputProcessorInterface() {
     }
-    ;
     virtual void run() = 0;
     virtual void join() = 0;
 };
@@ -88,8 +87,7 @@ private:
      * Sets up reading from the shards by chunk
      */
     void dispatchChunksForRead();
-    void dispatchChunksForRead(EndPointHolder::MongoEndPoint* endPoint,
-            const std::deque<mtools::ChunkRange>* shardChunks);
+    void dispatchChunksForRead(mtools::MongoCluster::ShardChunks::value_type& shardChunks);
     /**
      * Pushes the data from the database operation onto the input queue
      */
@@ -101,10 +99,10 @@ private:
     //Target input cluster
     mtools::MongoCluster _mCluster;
     mongo::BSONObj _shardKey;
-    //Number of chunks that have not had their results queued, must be set before processing starts
+    //Number of chunks that have not had their results queued
+    //Used as a sanity check to ensure loading has taken place (may need to remove if convoy, but shouldn't)
     std::atomic<size_t> _chunksRemaining { };
     std::atomic<bool> _loadDone { };
-    //std::deque<mtools::ShardName, int> _shardStatus;
 
     //Ends points to target input cluster
     EndPointHolder _loadEndPoints;
