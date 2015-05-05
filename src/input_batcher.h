@@ -183,7 +183,7 @@ public:
     void cleanUpAllQueues();
 
 private:
-    using InputPlan = tools::Index<mtools::ChunkIndexKey, ChunkBatcherPointer, tools::BsonCompare>;
+    using InputPlan = tools::Index<mtools::ChunkIndexKey, ChunkBatcherPointer, mtools::BsonCompare>;
 
     /**
      * Sets up a single name space

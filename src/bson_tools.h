@@ -16,7 +16,7 @@
 #pragma once
 #include "mongo_cxxdriver.h"
 
-namespace tools {
+namespace mtools {
 
 //Depends on the same in mongo.  Ordering.h lines 67 (no constant defined...)
 constexpr int MAX_ORDER_KEYS = 31;

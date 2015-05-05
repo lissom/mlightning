@@ -54,7 +54,7 @@ CreateInputProcessorFunction>;
 class MongoInputProcessor: public InputProcessorInterface {
 public:
     static const size_t BATCH_SIZE_BYTES = 65 * 1024 * 1024;
-    static const size_t SPLIT_SIZE_BYTES = 65 * 1024 * 1024;
+    static const long long SPLIT_SIZE_BYTES = 65 * 1024 * 1024;
     static const size_t MAX_DOCS_PER_CHUNK = 250000;
 
     MongoInputProcessor(Loader* const owner);

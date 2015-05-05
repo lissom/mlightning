@@ -62,7 +62,7 @@ void MongoCluster::loadIndex(IndexType* index, const std::string& queryNs, Mappi
             if (idx)
                 idx->finalize();
             prevNs = ns;
-            idx = &index->emplace(ns, index_mapped_type(tools::BsonCompare(key))).first->second;
+            idx = &index->emplace(ns, index_mapped_type(mtools::BsonCompare(key))).first->second;
         }
         idx->insertUnordered(obj.getField("max").Obj().getOwned(), linkmap->find(mappingValue));
     }
@@ -74,7 +74,7 @@ void MongoCluster::loadIndex(IndexType* index, const std::string& queryNs, Mappi
 MongoCluster::ShardChunks MongoCluster::getShardChunks(const NameSpace &ns) {
     MongoCluster::ShardChunks shardChunks;
     //Use the internal getShardChunks here so synth shards are honored
-    //Need to calc range
+    //The range of upper bounds is transformed into a range per chunk
     auto&& chunks = _nsChunks.find(ns);
     if (chunks != _nsChunks.end() && chunks->second.size()) {
         auto chunk = chunks->second.begin();
@@ -109,7 +109,7 @@ void MongoCluster::loadIndex(NsTagUBIndex* index, const std::string& queryNs, Ma
             if (idx)
                 idx->finalize();
             prevNs = ns;
-            idx = &index->emplace(ns, index_mapped_type(tools::BsonCompare(key))).first->second;
+            idx = &index->emplace(ns, index_mapped_type(mtools::BsonCompare(key))).first->second;
         }
         idx->insertUnordered(obj.getField("max").Obj().getOwned(),
                 TagRange(linkmap->find(mappingValue), obj.getField("max").Obj().getOwned(),
@@ -381,7 +381,7 @@ bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj& sh
     //insert the shards
     //long long is used in the driver/server code.  int64_t is ambiguous
     ShardBsonIndex* shardKeyMap = &_nsChunks.emplace(ns,
-            ShardBsonIndex(tools::BsonCompare(shardKey))).first->second;
+            ShardBsonIndex(mtools::BsonCompare(shardKey))).first->second;
     std::string shardKeyName = shardKey.firstElement().fieldName();
     shardKeyMap->insertUnordered(
             std::make_pair(BSON(shardKeyName << BSON("$maxkey" << 1)), shardItr));
@@ -417,7 +417,7 @@ bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj& sh
     //insert the shards
     //long long is used in the driver/server code.  int64_t is ambiguous
     ShardBsonIndex* shardKeyMap = &_nsChunks.emplace(ns,
-            ShardBsonIndex(tools::BsonCompare(shardKey))).first->second;
+            ShardBsonIndex(mtools::BsonCompare(shardKey))).first->second;
     std::string shardKeyName = shardKey.firstElement().fieldName();
     shardKeyMap->insertUnordered(
             std::make_pair(BSON(shardKeyName << BSON("$maxkey" << 1)), shardItr));

@@ -135,7 +135,7 @@ public:
     using OrderedBreathFirst = std::deque<ChunkDispatchInterface*>;
     using Key = mtools::ChunkIndexKey;
     using Value = ChunkDispatchPointer;
-    using LoadPlan = tools::Index<Key, Value, tools::BsonCompare>;
+    using LoadPlan = tools::Index<Key, Value, mtools::BsonCompare>;
 
     struct Settings {
         LoadQueues *loadQueues;
@@ -285,7 +285,7 @@ public:
     }
 
     void push(BsonV* q) {
-        std::sort(q->begin(), q->end(), tools::BsonCompare(owner()->sortIndex()));
+        std::sort(q->begin(), q->end(), mtools::BsonCompare(owner()->sortIndex()));
         send(q);
         //TODO: remove this check
         assert(q->empty());
@@ -326,7 +326,7 @@ public:
     }
 
 private:
-    using Compare = tools::IndexPairCompare<tools::BsonCompare, Bson>;
+    using Compare = tools::IndexPairCompare<mtools::BsonCompare, Bson>;
 
     static const bool factoryRegisterCreator;
     tools::ConcurrentQueue<BsonPairDeque::value_type> _queue;

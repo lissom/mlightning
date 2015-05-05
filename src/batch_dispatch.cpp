@@ -90,7 +90,7 @@ ChunkDispatcher::OrderedBreathFirst ChunkDispatcher::getBreathFirst() {
 }
 
 void RAMQueueDispatch::finalize() {
-    _queue.sort(Compare(tools::BsonCompare(owner()->sortIndex())));
+    _queue.sort(Compare(mtools::BsonCompare(owner()->sortIndex())));
     mtools::DataQueue sendQueue;
     size_t queueSize = owner()->queueSize();
     for (auto& i : _queue.unSafeAccess()) {

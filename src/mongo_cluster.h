@@ -49,11 +49,18 @@ struct ChunkRange {
     ChunkIndexKey max;
     ChunkIndexKey min;
 
+    //For comparisons
+    ChunkRange(mongo::BSONObj max__) : max(max__) { }
+
     ChunkRange(ChunkIndexKey max__, ChunkIndexKey min__) :
             max(max__), min(min__) {
         assert(min < max);
     }
 };
+
+inline bool operator<(const ChunkRange& lhs, const ChunkRange& rhs) {
+    return lhs.max < rhs.max;
+}
 
 class MongoCluster {
 public:
@@ -83,7 +90,7 @@ public:
     //ShardMap is a map of mongo connection string to shards
     using ShardMap = std::unordered_map<ShardName, ShardConn>;
     //Shard chunk range upper bound map, chunks must be < sorted for MongoCluster::getShardChunks
-    using ShardBsonIndex = tools::Index<ChunkIndexKey, ShardMap::iterator, tools::BsonCompare>;
+    using ShardBsonIndex = tools::Index<ChunkIndexKey, ShardMap::iterator, mtools::BsonCompare>;
     //Chunks in a namespace map, chunks must be < sorted for MongoCluster::getShardChunks
     using NsUBIndex = std::unordered_map<NameSpace, ShardBsonIndex>;
     //Tagged sharding tag->shards
@@ -111,7 +118,7 @@ public:
             return ostream;
         }
     };
-    using TagBsonIndex = tools::Index<ChunkIndexKey, TagRange, tools::BsonCompare>;
+    using TagBsonIndex = tools::Index<ChunkIndexKey, TagRange, mtools::BsonCompare>;
     using NsTagUBIndex = std::unordered_map<NameSpace, TagBsonIndex>;
     using Mongos = std::vector<std::string>;
     MongoCluster() = delete;
@@ -203,21 +210,22 @@ public:
 
     /**
      * Runs the splitvector command
-     * "timeMillis" : 148,
-     "splitKeys" : [
-     {
-     "_id" : NumberLong(30531620)
-     },
-     {
-     "_id" : NumberLong(125530294)
-     }
-     ],
-     "ok" : 1,
-     "$gleStats" : {
-     "lastOpTime" : Timestamp(0, 0),
-     "electionId" : ObjectId("553c538132eb10c8fe1f5f46")
-     }
-     errmsg if ran on a sharded db: "can't do command: splitVector on sharded collection"))
+     *
+         "timeMillis" : 148,
+         "splitKeys" : [
+         {
+         "_id" : NumberLong(30531620)
+         },
+         {
+         "_id" : NumberLong(125530294)
+         }
+         ],
+         "ok" : 1,
+         "$gleStats" : {
+         "lastOpTime" : Timestamp(0, 0),
+         "electionId" : ObjectId("553c538132eb10c8fe1f5f46")
+         }
+     * errmsg if ran on a sharded db: "can't do command: splitVector on sharded collection"))
      */
     bool splitVector(mongo::BSONObj* result, const NameSpace& ns, const mongo::BSONObj& shardKey,
             const long long maxChunkSizeBytes);

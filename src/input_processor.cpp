@@ -180,7 +180,29 @@ void MongoInputProcessor::dispatchChunksForRead(mtools::MongoCluster::ShardChunk
                 std::cerr << "Running splitVector failed, force splits requested: " << split
                         << ". Using config supplied split points" << std::endl;
             }
-            HERE
+            mongo::BSONObjIterator iKey(split.getObjectField("splitKeys"));
+            if(iKey.more()) {
+                auto key = iKey.next().Obj();
+                auto chunk = std::lower_bound(shardChunks.second.begin(), shardChunks.second.end(), key);
+                /*
+                 * We assume that there are not many orphan documents, therefore looking at the
+                 * chunks on this shard first will result in the fastest lookup
+                 */
+                if (chunk != shardChunks.second.end()) {
+                    //We know it's not less than, ensure it's in the chunks range
+                    if (chunk->max > key && chunk->min <= key) {
+                        key = key.getOwned();
+                        shardChunks.second.emplace(chunk, chunk->min, key);
+                        ++chunk->min = key;
+                    }
+                }
+
+            }
+            else {
+                std::cerr << "Warning: Split vector returned no chunks form " << shardChunks.first
+                        << ".  Using the splits from the config server(s)"
+                        << std::endl;
+            }
         }
     }
     EndPointHolder::MongoEndPoint* endPoint;
