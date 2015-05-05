@@ -192,8 +192,8 @@ void MongoInputProcessor::dispatchChunksForRead(mtools::MongoCluster::ShardChunk
                     //We know it's not less than, ensure it's in the chunks range
                     if (chunk->max > key && chunk->min <= key) {
                         key = key.getOwned();
-                        shardChunks.second.emplace(chunk, chunk->min, key);
-                        ++chunk->min = key;
+                        shardChunks.second.emplace(chunk, key, chunk->min);
+                        (++chunk)->min = key;
                     }
                 }
 
