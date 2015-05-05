@@ -292,7 +292,7 @@ public:
     }
 
 private:
-    static const bool factoryRegisterCreator;
+    static const bool factoryRegisterCreator0;
     BsonQ _bsonHolder;
 
     void doPush() {
@@ -301,21 +301,6 @@ private:
 
 };
 
-/*
- * work in progress, ignore
- * being use to examine different disk queues, currently all of them are too disk intensive
- */
-class IndexedBucketQueue: public DirectQueue {
-public:
-    IndexedBucketQueue(InputChunkBatcherHolder* owner, const Bson& UBIndex) :
-            DirectQueue(owner, UBIndex) {
-    }
-
-    static ChunkBatcherPointer create(InputChunkBatcherHolder* owner, const Bson& UBIndex,
-            const Bson& index) {
-        return ChunkBatcherPointer(new IndexedBucketQueue(owner, UBIndex));
-    }
-};
 }  //namespace queue
 } //namespace loader
 

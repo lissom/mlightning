@@ -19,6 +19,7 @@
 #include "input_processor.h"
 #include <iostream>
 #include "loader.h"
+#include "loader_defs.h"
 #include "mongo_cxxdriver.h"
 #include <tuple>
 
@@ -82,12 +83,11 @@ void Loader::Settings::process() {
         //For all file output formats use hashed _id if the user hasn't given a different key
         output.database = "mlightning";
         output.collection = "mlightning_synth";
-        loadQueueJson = OUTPUT_FILE;
         if (shardKeyJson.empty())
             shardKeyJson = R"({ "_id" : "hashed" })";
         //Create queues equal to the number of threads
-        loadQueueJson = R"({"ml1": )" + std::to_string(threads) + R"(})";
-        if (outputType == OUTPUT_FILE) {
+        loadQueueJson = R"({")" + std::string(OUTPUT_MLTN) + R"(": )" + std::to_string(threads) + R"(})";
+        if (outputType == OUTPUT_MLTN) {
             if (workPath.empty()) {
                 std::cerr << "Output of \"file\" specified.  No workPath given to output to"
                         << std::endl;

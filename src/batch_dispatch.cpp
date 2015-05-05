@@ -24,7 +24,7 @@ const bool DirectDispatch::factoryRegisterCreator = ChunkDispatcherFactory::regi
 const bool RAMQueueDispatch::factoryRegisterCreator = ChunkDispatcherFactory::registerCreator("ram",
         &RAMQueueDispatch::create);
 const bool DiskQueueBoundedFileDispatch::factoryRegisterCreator =
-        ChunkDispatcherFactory::registerCreator("ml1", &DiskQueueBoundedFileDispatch::create);
+        ChunkDispatcherFactory::registerCreator("mltn", &DiskQueueBoundedFileDispatch::create);
 
 ChunkDispatchInterface::ChunkDispatchInterface(Settings settings) :
         _settings(std::move(settings)), _bulkWriteVersion(_settings.owner->bulkWriteVersion()) {

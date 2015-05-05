@@ -50,7 +50,7 @@ using BsonSize = int32_t;
 /*
  * Output Types
  */
-const char OUTPUT_FILE[] = "mltn";
+const char OUTPUT_MLTN[] = "mltn";
 const char OUTPUT_MONGO[] = "mongo";
 /*
  * Input types

@@ -22,7 +22,7 @@ const bool DirectQueue::factoryRegisterCreator = ChunkBatchFactory::registerCrea
         &DirectQueue::create);
 const bool RAMQueue::factoryRegisterCreator = ChunkBatchFactory::registerCreator("ram",
         &RAMQueue::create);
-const bool DiskQueue::factoryRegisterCreator = ChunkBatchFactory::registerCreator("ml1",
+const bool DiskQueue::factoryRegisterCreator0 = ChunkBatchFactory::registerCreator("mltn",
         &DiskQueue::create);
 
 ChunkBatcherInterface::ChunkBatcherInterface(InputChunkBatcherHolder* owner, Bson UBIndex) :
