@@ -293,6 +293,7 @@ public:
 
 private:
     static const bool factoryRegisterCreator0;
+    static const bool factoryRegisterCreator1;
     BsonQ _bsonHolder;
 
     void doPush() {

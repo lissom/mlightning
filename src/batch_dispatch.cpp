@@ -154,7 +154,7 @@ void DiskQueueBoundedFileDispatch::spill() {
         localHolder.pop_front();
     }
 
-    //Return any elements to the object's queue, we don't check to deque again
+    //Return any elements to the object's queue, we don't check to de-queue again
     //This thread already has done so once
     //First calc the size
     size_t plusSize { };

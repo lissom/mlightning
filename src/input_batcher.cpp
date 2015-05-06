@@ -24,6 +24,9 @@ const bool RAMQueue::factoryRegisterCreator = ChunkBatchFactory::registerCreator
         &RAMQueue::create);
 const bool DiskQueue::factoryRegisterCreator0 = ChunkBatchFactory::registerCreator("mltn",
         &DiskQueue::create);
+const bool DiskQueue::factoryRegisterCreator1 = ChunkBatchFactory::registerCreator("presplit",
+        &DiskQueue::create);
+
 
 ChunkBatcherInterface::ChunkBatcherInterface(InputChunkBatcherHolder* owner, Bson UBIndex) :
         _owner(owner), _queueSize(_owner->settings().queueSize), _dispatcher(
