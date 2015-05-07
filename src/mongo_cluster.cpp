@@ -359,6 +359,36 @@ bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj& sh
 }
 
 bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
+        const bool unique, const mongo::BSONObj& splits, const bool synthetic) {
+    assert(synthetic);
+    assert(!ns.empty());
+    assert(!shardKey.isEmpty());
+    if (_colls.end() != _colls.find(ns))
+        throw std::logic_error("Namespace already exists, cannot synthetic shard it");
+    //insert the database if it doesn't exist
+    std::string dbName = ns.substr(0, ns.find('.'));
+    auto shardItr = _shards.begin();
+    if (_dbs.find(dbName) == _dbs.end())
+        _dbs.insert(std::make_pair(dbName, MetaDatabase(dbName, true, shardItr->first, true)));
+    //insert the collection
+    _colls.insert(std::make_pair(ns, MetaNameSpace(ns, false, shardKey, unique, true)));
+    //insert the shards
+    //long long is used in the driver/server code.  int64_t is ambiguous
+    ShardBsonIndex* shardKeyMap = &_nsChunks.emplace(ns,
+            ShardBsonIndex(mtools::BsonCompare(shardKey))).first->second;
+    std::string shardKeyName = shardKey.firstElement().fieldName();
+    shardKeyMap->insertUnordered(
+            std::make_pair(BSON(shardKeyName << BSON("$maxkey" << 1)), shardItr));
+    //Sort order is irrelevant, but it the only intr available, plus it means array order
+    mongo::BSONObjIterator itr(splits["splitKeys"].Obj());
+    while (itr.more())
+        shardKeyMap->insertUnordered(std::make_pair(itr.next().Obj().copy(), shardItr));
+    //Sort happens for sharding
+    shardKeyMap->finalize();
+    return true;
+}
+
+bool MongoCluster::syntheticShardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
         const bool unique, const uint initialChunks) {
     assert(!ns.empty());
     assert(!shardKey.isEmpty());
@@ -394,36 +424,6 @@ bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj& sh
             shardKeyMap->insertUnordered(std::make_pair(BSON(shardKeyName << currentUB), shardItr));
         }
     }
-    shardKeyMap->finalize();
-    return true;
-}
-
-bool MongoCluster::shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey,
-        const bool unique, const mongo::BSONObj& splits, const bool synthetic) {
-    assert(synthetic);
-    assert(!ns.empty());
-    assert(!shardKey.isEmpty());
-    if (_colls.end() != _colls.find(ns))
-        throw std::logic_error("Namespace already exists, cannot synthetic shard it");
-    //insert the database if it doesn't exist
-    std::string dbName = ns.substr(0, ns.find('.'));
-    auto shardItr = _shards.begin();
-    if (_dbs.find(dbName) == _dbs.end())
-        _dbs.insert(std::make_pair(dbName, MetaDatabase(dbName, true, shardItr->first, true)));
-    //insert the collection
-    _colls.insert(std::make_pair(ns, MetaNameSpace(ns, false, shardKey, unique, true)));
-    //insert the shards
-    //long long is used in the driver/server code.  int64_t is ambiguous
-    ShardBsonIndex* shardKeyMap = &_nsChunks.emplace(ns,
-            ShardBsonIndex(mtools::BsonCompare(shardKey))).first->second;
-    std::string shardKeyName = shardKey.firstElement().fieldName();
-    shardKeyMap->insertUnordered(
-            std::make_pair(BSON(shardKeyName << BSON("$maxkey" << 1)), shardItr));
-    //Sort order is irrelevant, but it the only intr available, plus it means array order
-    mongo::BSONObjIterator itr(splits["splitKeys"].Obj());
-    while (itr.more())
-        shardKeyMap->insertUnordered(std::make_pair(itr.next().Obj().copy(), shardItr));
-    //Sort happens for sharding
     shardKeyMap->finalize();
     return true;
 }

@@ -272,15 +272,16 @@ public:
     bool shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey, const bool unique,
             const uint initialChunks, mongo::BSONObj& info);
 
-    //Synthetic sharding function only
-    bool shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey, const bool unique,
-            const uint initialChunks = 1);
-
     /**
      * splits is an BSONObj with an array called splitKeys (i.e. splitVector output)
+     * if synthetic is true it is only split in mLightning, used for non-sharded clusters
      */
     bool shardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey, const bool unique,
             const mongo::BSONObj& splits, const bool synthetic);
+
+    //Synthetic sharding function only
+    bool syntheticShardCollection(const NameSpace& ns, const mongo::BSONObj& shardKey, const bool unique,
+            const uint initialChunks = 1);
 
     //Flush all router configs
     void flushRouterConfigs();

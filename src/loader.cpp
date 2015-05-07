@@ -253,7 +253,6 @@ void Loader::setupOutputCluster() {
                 std::cerr << "Unable to stop the balancer" << std::endl;
                 exit(EXIT_FAILURE);
             }
-
         //TODO: make these checks more sophisticated (i.e. conditions already true? success!)
         mongo::BSONObj info;
         if (!_mCluster.enableSharding(_settings.output.database, info)) {
@@ -285,6 +284,9 @@ void Loader::setupOutputCluster() {
                 //The collection already being sharded is only an error if it was supposed to be dropped
                 std::string strerror = info.getStringField("errmsg");
                 if ((strerror != "already sharded") || _settings.dropDb || _settings.dropColl) {
+                    if (dropFailure.getIntField("ok") != 1)
+                        std::cerr << "Dropping " << (_settings.dropDb ? "database " : "collection ")
+                                << "failed: " << dropFailure.getStringField("errmsg") << "\n";
                     std::cerr << "Sharding collection failed: " << info << "\nExiting" << std::endl;
                     exit(EXIT_FAILURE);
                 }
@@ -293,8 +295,8 @@ void Loader::setupOutputCluster() {
         //Capture sharded changes if we hashed, etc
         _mCluster.loadCluster();
     } else {
-        _mCluster.shardCollection(_settings.output.ns(), _settings.shardKeyBson,
-        true, 1);
+        //For unshared collections
+        _mCluster.syntheticShardCollection(_settings.output.ns(), _settings.shardKeyBson, true, 1);
     }
 
     _endPoints.reset(new EndPointHolder(_settings.output.endPoints, cluster()));
@@ -335,7 +337,7 @@ void Loader::dump() {
     //Create a single fake shard
     _mCluster.shards().insert(std::make_pair("mlSynth", "mlSynth"));
     //Create the splits to setup the file write by creating a synthetic output namespace
-    _mCluster.shardCollection(_settings.output.ns(), _settings.shardKeyBson,
+    _mCluster.syntheticShardCollection(_settings.output.ns(), _settings.shardKeyBson,
     false, _settings.threads);
     //Setup the file write
     _chunkDispatch.reset(

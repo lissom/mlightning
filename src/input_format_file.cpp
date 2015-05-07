@@ -133,12 +133,16 @@ void InputFormatMltn::reset(tools::LocSegment segment) {
     //we currently don't handle partial bson
     assert(_locSegment.begin == 0);
     assert(_locSegment.end == 0);
-    assert(infile.is_open());
+    if(!infile.is_open())
+        throw std::logic_error("Unable to open segment file for processing");
     FileChunkType blockType;
     SequenceId sid;
     _bufferSize = readFromStream(infile, &blockType, &sid, &_buffer);
-    assert(_bufferSize);
-    assert(blockType == FileChunkType::data);
+    if(!_bufferSize)
+        throw std::logic_error("InputFormatMltn::reset: Zero buffer size");
+    if(blockType != FileChunkType::data)
+        throw std::logic_error("InputFormatMltn::reset: Invalid FileChunkType, should be data");
+    //Only true for now
     assert(sid == 0);
     _docCount = 0;
     _bufferPos = 0;
@@ -148,7 +152,6 @@ bool InputFormatMltn::next(mongo::BSONObj* const nextDoc) {
     //Check to see if the end has been reached
     if (_bufferPos == _bufferSize)
         return false;
-
     ++_docCount;
     BsonSize bsonSize;
     //TODO: Change to just pointing the bson object and try...catch over size
