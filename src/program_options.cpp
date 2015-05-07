@@ -103,8 +103,8 @@ void setProgramOptions(Loader::Settings& settings, int argc, char* argv[]) {
                 "Is the shard key unique")
         ("add_id", po::value<bool>(&settings.add_id)->default_value(true),
                 "Add _id if it doesn't exist, operations will error if _id is required")
-        ("shardedSplits", po::value<std::string>(&settings.shardedSplits)->default_value("auto"),
-                "Do not force splits for an already sharded cluster if a bad ratio is detected.  Options: auto, none, force.")
+        ("splitVector", po::value<std::string>(&settings.splitVector)->default_value("auto"),
+                "Run splits for an already sharded cluster if a bad ratio is detected.  Options: auto, none, force.")
         ("queuing,q", po::value<std::string>(&settings.loadQueueJson)->default_value("\"direct\":10"),
                 supportedLoadStrategies.c_str())
         ("load.batchSize", po::value<long unsigned int>(&settings.batcherSettings.queueSize)

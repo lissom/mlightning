@@ -164,7 +164,7 @@ public:
     }
 
     mtools::ShardName getShardForChunk(Key& key) {
-        return _mCluster.getShardForChunk(ns(), key);
+        return _mCluster.getShardForChunkMaxKey(ns(), key);
     }
 
     /**

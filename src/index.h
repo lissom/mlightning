@@ -186,9 +186,9 @@ public:
      */
     iterator find(const Key& key) {
         auto i = std::lower_bound(begin(), end(), key, _compare);
-        //TODO: remove assert, right now it's here because this should never be true
-        assert(i->first == key);
-        //Ensure positive infinity returns the correct result
+        //Return end if the value wasn't found
+        if (i != end() && i->first != key)
+            i = end();
         return i;
 
     }

@@ -36,13 +36,13 @@ namespace loader {
 void Loader::Settings::process() {
     bool found = false;
     for (auto&& value : SHARDED_SPLITS) {
-        if (value == shardedSplits) {
+        if (value == splitVector) {
             found = true;
             break;
         }
     }
     if (!found) {
-        std::cerr << "Bad value for shardedSplits: " << shardedSplits << std::endl;
+        std::cerr << "Bad value for shardedSplits: " << splitVector << std::endl;
         exit(EXIT_FAILURE);
     }
     int originalThreads = threads;

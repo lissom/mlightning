@@ -21,10 +21,11 @@ void ThreadPool::_workLoop() {
     MutexUniqueLock lock(_workMutex, std::defer_lock);
     for (;;) {
         lock.lock();
-        _workNotify.wait(lock, [this]() {return !this->_workQueue.empty() || this->terminating()
-            || ending();});
-        if (terminating() || (_workQueue.empty() && ending()))
-            break;
+        _workNotify.wait(lock, [this]() {return !this->_workQueue.empty() || ending();});
+        if (ending()) {
+           if(_workQueue.empty() || terminating())
+                   break;
+        }
         ThreadFunction func = std::move(_workQueue.front());
         _workQueue.pop_front();
         lock.unlock();

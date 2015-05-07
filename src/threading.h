@@ -57,25 +57,23 @@ private:
  */
 class ThreadPool {
 public:
+    enum class Status { running, ending, terminating };
+
     ThreadPool(size_t size) :
-            _terminate( false), _endWait( false) {
+            _status(Status::running) {
         do {
             _threads.push_back(std::thread(ThreadPoolWorker(*this)));
         } while (--size);
     }
 
     ~ThreadPool() {
-        //If the pool ended with endwait all work should be complete
-        //If _endWait is true then either _terminate is true or queueSize should be zero
-        assert(_terminate || !_endWait || !queueSize());
-        _terminate = true;
-        _workNotify.notify_all();
+        terminateInitiate();
+        //Do not return until all threads are halted, may need a release function
         join();
-
     }
 
     /**
-     * Enqueus a work function
+     * Enqueues a work function
      */
     void queue(ThreadFunction func) {
         MutexLockGuard lock(_workMutex);
@@ -84,7 +82,7 @@ public:
     }
 
     /**
-     * Enqueus a work function numWorkers times
+     * Enqueues a work function numWorkers times
      * If numbers workers is < 0, then maxthreads - numWorkers
      * The function is always queued once
      */
@@ -127,31 +125,35 @@ public:
      * Get the terminate flag
      */
     bool terminating() {
-        return _terminate;
+        return _status == Status::terminating;
     }
 
     /**
      * Get the endWait flag
      */
     bool ending() {
-        return _endWait;
+        return _status >= Status::ending;
     }
 
     /**
      * Sets the terminate flag
+     * must ALWAYS set the _endWait flag too, only _endWait is checked in loops
      */
     void terminateInitiate() {
-        _terminate = true;
-        _endWait = true;
-        _workNotify.notify_all();
+        if (_status < Status::terminating) {
+            _status = Status::terminating;
+            _workNotify.notify_all();
+        }
     }
 
     /**
      * Sets the endWait flag
      */
     void endWaitInitiate() {
-        _endWait = true;
-        _workNotify.notify_all();
+        if (_status == Status::running) {
+            _status = Status::ending;
+            _workNotify.notify_all();
+        }
     }
 
     /*
@@ -181,10 +183,7 @@ private:
     friend class ThreadPoolWorker;
     void _workLoop();
 
-    //TODO:Change this to an int and use flags
-    //Atomics are cheap, and if we leave x86...
-    std::atomic<bool> _terminate;
-    std::atomic<bool> _endWait;
+    std::atomic<Status> _status;
 
     std::deque<std::thread> _threads;
     mutable Mutex _workMutex;

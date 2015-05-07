@@ -71,8 +71,8 @@ void MongoCluster::loadIndex(IndexType* index, const std::string& queryNs, Mappi
         idx->finalize();
 }
 
-MongoCluster::ShardChunks MongoCluster::getShardChunks(const NameSpace &ns) {
-    MongoCluster::ShardChunks shardChunks;
+MongoCluster::ShardsChunks MongoCluster::getShardChunks(const NameSpace &ns) {
+    MongoCluster::ShardsChunks shardChunks;
     //Use the internal getShardChunks here so synth shards are honored
     //The range of upper bounds is transformed into a range per chunk
     auto&& chunks = _nsChunks.find(ns);
@@ -80,11 +80,9 @@ MongoCluster::ShardChunks MongoCluster::getShardChunks(const NameSpace &ns) {
         auto chunk = chunks->second.begin();
         mongo::BSONObj minKey = generateMinKey(chunk->first);
         mongo::BSONObj* prevMinKey = &minKey;
-        std::string prevChunkName = chunk->second->first;
         for (; chunk != chunks->second.end(); ++chunk) {
             assert(chunk->first > *prevMinKey);
-            shardChunks[prevChunkName].emplace_back(ChunkRange(chunk->first, *prevMinKey));
-            prevChunkName = chunk->second->first;
+            shardChunks[chunk->second->first].emplace_back(ChunkRange(chunk->first, *prevMinKey));
             prevMinKey = &chunk->first;
         }
     }

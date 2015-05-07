@@ -55,7 +55,8 @@ public:
         class ClusterSettings {
         public:
             std::string uri;
-            mongo::ConnectionString cs;bool stopBalancer;
+            mongo::ConnectionString cs;
+            bool stopBalancer;
             std::string database;
             std::string collection;
             mtools::MongoEndPointSettings endPoints;
@@ -99,7 +100,7 @@ public:
         std::string shardKeyJson;
         mongo::BSONObj shardKeyBson;
         FieldKeys shardKeyFields;
-        std::string shardedSplits;bool dropDb { };bool dropColl { };
+        std::string splitVector;bool dropDb { };bool dropColl { };
         //Drop indexes is not guaranteed to be initialized except for here
         bool dropIndexes { };
 

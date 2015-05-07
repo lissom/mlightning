@@ -87,7 +87,7 @@ private:
      * Sets up reading from the shards by chunk
      */
     void dispatchChunksForRead();
-    void dispatchChunksForRead(mtools::MongoCluster::ShardChunks::value_type& shardChunks);
+    void dispatchChunksForRead(mtools::MongoCluster::ShardsChunks::value_type& shardChunks);
     /**
      * Pushes the data from the database operation onto the input queue
      */
@@ -107,7 +107,7 @@ private:
     //Ends points to target input cluster
     EndPointHolder _loadEndPoints;
     //Input chunks by shard, is drained eventually
-    mtools::MongoCluster::ShardChunks _inputShardChunks;
+    mtools::MongoCluster::ShardsChunks _inputShardChunks;
     //Query results are stored here while waiting for a thread to process them
     tools::ConcurrentQueue<BsonContainer> _inputQueue;
     std::unique_ptr<tools::ThreadPool> _tpBatcher;

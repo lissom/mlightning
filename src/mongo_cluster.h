@@ -58,6 +58,10 @@ struct ChunkRange {
     }
 };
 
+inline std::ostream& operator<<(std::ostream& out, const ChunkRange& key) {
+    return out << "<" << key.max << " : " << key.min << ">";
+}
+
 inline bool operator<(const ChunkRange& lhs, const ChunkRange& rhs) {
     return lhs.max < rhs.max;
 }
@@ -66,7 +70,7 @@ class MongoCluster {
 public:
     //The sort for chunks.  "max": 1.  Static init fiasco if not done this way
     static const mongo::BSONObj& ConfigChunkSort();
-    using ShardChunks = std::unordered_map<ShardName, std::deque<ChunkRange>>;
+    using ShardsChunks = std::unordered_map<ShardName, std::deque<ChunkRange>>;
     struct MetaNameSpace {
         NameSpace ns;bool dropped;
         mongo::BSONObj key;bool unique;bool virt;
@@ -147,7 +151,11 @@ public:
     }
 
     const MetaNameSpace& getNs(const NameSpace &ns) const {
-        return _colls.at(ns);
+        try {
+            return _colls.at(ns);
+        } catch (std::out_of_range& e) {
+            throw std::out_of_range("The namespace doesn't exist");
+        }
     }
 
     mongo::ConnectionString& connStr() {
@@ -163,7 +171,7 @@ public:
      */
     ShardMap getShardList() const;
 
-    ShardChunks getShardChunks(const NameSpace &ns);
+    ShardsChunks getShardChunks(const NameSpace &ns);
 
     /**
      * @return access to shards and their connection strings
@@ -348,7 +356,7 @@ public:
     /**
      * @return given a namespace and chunk give back the shard it resides on
      */
-    ShardName getShardForChunk(const std::string& ns, const ChunkIndexKey& key) {
+    ShardName getShardForChunkMaxKey(const std::string& ns, const ChunkIndexKey& key) {
         return _nsChunks.at(ns).at(key)->first;
     }
 

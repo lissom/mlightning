@@ -34,14 +34,17 @@ const bool FileInputProcessor::_registerFactoryBson = InputProcessorFactory::reg
 const bool FileInputProcessor::_registerFactoryMltn = InputProcessorFactory::registerCreator(
         INPUT_MLTN, FileInputProcessor::create);
 
-MongoInputProcessor::MongoInputProcessor(Loader* const owner) :
+MongoInputProcessor::MongoInputProcessor(Loader* const owner) try :
+        //_mCluster.getNs can throw, so wrap everything
         _owner(owner), _ns(_owner->settings().input.ns()), _mCluster(_owner->settings().input.uri),
         //If we throw an e_out_of_range error here it should only be for sharded clusers with non-sharded ns
         //Ideall that is fixed in mCluster, not by a hack here
         _shardKey(_mCluster.sharded() ? _mCluster.getNs(_ns).key : BSON("_id" << 1)),
         _loadEndPoints(_owner->settings().input.endPoints, _mCluster),
-        _tpBatcher(new tools::ThreadPool(_owner->settings().threads + 2)), _didDisableBalancerForNS(
-                _mCluster.sharded() && _mCluster.isBalancingEnabled(_ns)) {
+        //_tpBatcher(new tools::ThreadPool(1)),
+        _tpBatcher(new tools::ThreadPool(_owner->settings().threads + 2)),
+        _didDisableBalancerForNS(_mCluster.sharded() && _mCluster.isBalancingEnabled(_ns))
+{
     if (_mCluster.count(_ns) == 0) {
         std::cerr << "There are no documents in " << _ns << "\nExiting" << std::endl;
         //arguable if it's failure, but hey
@@ -52,7 +55,11 @@ MongoInputProcessor::MongoInputProcessor(Loader* const owner) :
             exit(EXIT_FAILURE);
     }
     _inputQueue.setSizeMax(MONGOINPUT_QUEUE_BASE_SIZE);
+} catch(std::out_of_range &e) {
+    std::cerr << "Unable to initialize input for " << owner->settings().input.ns() << ": " << e.what() << std::endl;
+    exit(EXIT_FAILURE);
 }
+
 
 MongoInputProcessor::~MongoInputProcessor() {
     //Renable balancing on the input namespace if we disabled it
@@ -87,6 +94,7 @@ void MongoInputProcessor::run() {
     _tpBatcher->queue([this] {this->_loadEndPoints.start();});
     _tpBatcher->queue([this] {this->dispatchChunksForRead();});
     _tpBatcher->queue([this] {this->threadProcessLoop();}, -2);
+    //Output source
     std::cout << "Namespace: " << _ns;
     if (_mCluster.sharded())
         std::cout << " (" << _mCluster.shards().size() << " node sharded cluster)";
@@ -145,7 +153,7 @@ void MongoInputProcessor::dispatchChunksForRead() {
         static_assert(std::is_same<std::remove_reference<decltype(shardChunks)>::type,
                 decltype(_inputShardChunks)::value_type>::value,
                 "A proxy type cannot be returned, as this needs to be referenced to outside of the "
-                "loop by another thread.");
+                "loop(by another thread).");
         _tpDispatchReads->queue([this, &shardChunks]
         {   this->dispatchChunksForRead(shardChunks);});
     }
@@ -154,7 +162,7 @@ void MongoInputProcessor::dispatchChunksForRead() {
     _tpDispatchReads.reset();
 }
 
-void MongoInputProcessor::dispatchChunksForRead(mtools::MongoCluster::ShardChunks::value_type& shardChunks) {
+void MongoInputProcessor::dispatchChunksForRead(mtools::MongoCluster::ShardsChunks::value_type& shardChunks) {
     //Makes sure this shard holds valid data for this collection, or return
     if (!shardChunks.second.size())
         return;
@@ -162,44 +170,45 @@ void MongoInputProcessor::dispatchChunksForRead(mtools::MongoCluster::ShardChunk
      * If the cluster is sharded, check to see if it has good distribution
      * If not, synthetic shard it and use those chunks (in case the splits didn't happen)
      */
-    if (_mCluster.sharded() && _owner->settings().shardedSplits == SHARDED_SPLITS_NONE) {
+    if (_mCluster.sharded() && _owner->settings().splitVector != SHARDED_SPLITS_NONE) {
         std::unique_ptr<mongo::DBClientBase> dbConn = mongo::connectOrThrow(
                 mongo::parseConnectionOrThrow(_mCluster.getConn(shardChunks.first)));
-        if (_owner->settings().shardedSplits == SHARDED_SPLITS_FORCE ||
+        if (_owner->settings().splitVector == SHARDED_SPLITS_FORCE ||
                 dbConn->count(_ns) / shardChunks.second.size()> MAX_DOCS_PER_CHUNK) {
+            //Let the user know they should expect little activity
+            std::cout << "Shard " << shardChunks.first << ": getting additional split points" << std::endl;
             mongo::BSONObj split;
             //Find splits, if it fails, just use the ones we have and move on if force isn't true
-            if (dbConn->runCommand("admin", BSON("splitVector" << _ns << "keyPattern" << _shardKey <<
+            if (!dbConn->runCommand("admin", BSON("splitVector" << _ns << "keyPattern" << _shardKey <<
                     "maxChunkSizeBytes" << SPLIT_SIZE_BYTES), split)) {
-
-            } else if (_owner->settings().shardedSplits == SHARDED_SPLITS_FORCE) {
-                std::cerr << "Running splitVector failed, force splits requested: " << split
-                        << "\nExiting" << std::endl;
-                exit(EXIT_FAILURE);
-            } else {
-                std::cerr << "Running splitVector failed, force splits requested: " << split
-                        << ". Using config supplied split points" << std::endl;
+                if (_owner->settings().splitVector == SHARDED_SPLITS_FORCE) {
+                    std::cerr << "Running splitVector failed, force splits requested: " << split
+                            << "\nExiting" << std::endl;
+                    exit(EXIT_FAILURE);
+                } else {
+                    std::cerr << "Running splitVector failed, force splits requested: " << split
+                            << ". Using config supplied split points" << std::endl;
+                }
             }
             mongo::BSONObjIterator iKey(split.getObjectField("splitKeys"));
-            if(iKey.more()) {
-                auto key = iKey.next().Obj();
-                auto chunk = std::lower_bound(shardChunks.second.begin(), shardChunks.second.end(), key);
-                /*
-                 * We assume that there are not many orphan documents, therefore looking at the
-                 * chunks on this shard first will result in the fastest lookup
-                 */
-                if (chunk != shardChunks.second.end()) {
-                    //We know it's not less than, ensure it's in the chunks range
-                    if (chunk->max > key && chunk->min <= key) {
-                        key = key.getOwned();
-                        shardChunks.second.emplace(chunk, key, chunk->min);
-                        (++chunk)->min = key;
+            if (iKey.more()) {
+                auto minChunkKey = shardChunks.second.front().min;
+                while (iKey.more()) {
+                    auto key = iKey.next().Obj();
+                    auto chunk = std::upper_bound(shardChunks.second.begin(), shardChunks.second.end(), key);
+                    //Check to see if the split point is in range of valid chunks and the range size > 1
+                    if (chunk != shardChunks.second.end()) {
+                        //Ensure this isn't orphaned docs pushing this chunk out of range
+                        if(chunk->min < key) {
+                            key = key.copy();
+                            chunk = shardChunks.second.emplace(chunk, key, chunk->min);
+                            (++chunk)->min = key;
+                        }
                     }
                 }
-
             }
             else {
-                std::cerr << "Warning: Split vector returned no chunks form " << shardChunks.first
+                std::cerr << "Warning: Split vector returned no chunks from " << shardChunks.first
                         << ".  Using the splits from the config server(s)"
                         << std::endl;
             }
