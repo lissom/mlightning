@@ -21,8 +21,9 @@
 
 /**
  * Main todo:
- * C allow self sharded collections again
- * # shardkey index and then build then build afterward in the foreground
+ * # Create collections with the _id index and build it after {autoIndexId: false}
+ * # Abstract the output
+ * # drop shardkey index and then build then build afterward in the foreground
  * # auth
  * # continue on error (currently setup for shoot out mode)
  * # support mongoS string (or old style)
@@ -35,7 +36,7 @@
  */
 int main(int argc, char* argv[]) {
     int returnValue = EXIT_SUCCESS;
-    tools::SimpleTimer<> totalTimer;
+
     //C++ Driver
     mongo::client::initialize();
 
@@ -45,8 +46,8 @@ int main(int argc, char* argv[]) {
     try {
         settings.process();
     } catch (std::exception &e) {
-       std::cerr << "Unable to process settings: " << e.what() << std::endl;
-       return EXIT_FAILURE;
+        std::cerr << "Unable to process settings: " << e.what() << std::endl;
+        return EXIT_FAILURE;
     }
 
     std::cout << "Settings loaded" << std::endl;
@@ -65,12 +66,6 @@ int main(int argc, char* argv[]) {
         std::cerr << "Unable to initialize: " << e.what() << std::endl;
         return EXIT_FAILURE;
     }
-
-    totalTimer.stop();
-
-    long totalSeconds = totalTimer.seconds();
-
-    std::cout << "\nTotal time: " << totalSeconds / 60 << "m" << totalSeconds % 60 << "s" << std::endl;
 
     return returnValue;
 }

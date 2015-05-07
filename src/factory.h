@@ -22,69 +22,65 @@
 #include <string>
 
 namespace tools {
-    /*
-     * Factory template
-     * This factor template is never meant to be concrete
+/*
+ * Factory template
+ * This factor template is never meant to be concrete
+ */
+template<typename ObjectPtr, typename Factory, typename Key, typename Map>
+class RegisterFactoryImpl {
+    using Container = Map;
+
+    static Container& getMap() {
+        static Container container;
+        return container;
+    }
+
+public:
+    /**
+     * Registers the function to create the object.
+     * If that behavior is desired, create an unregister function
+     *
+     * @return to ensure that static bools can be used with this function to setup the factory
      */
-    template<typename ObjectPtr, typename Factory, typename Key, typename Map>
-    class RegisterFactoryImpl {
-        using Container = Map;
+    static bool registerCreator(Key&& key, Factory&& factory) {
+        assert(!key.empty());
+        bool result = getMap().insert(std::make_pair(key, std::forward<Factory>(factory))).second;
+        //ensure it doesn't already exist to avoid double inserts
+        assert(result);
+        return true;
+    }
 
-        static Container& getMap() {
-            static Container container;
-            return container;
-        }
+    /**
+     * Returns a nearly created object
+     * Throws if the key cannot be found
+     */
+    template<typename ... Args>
+    static ObjectPtr createObject(const Key& key, Args ... args) {
+        return getMap().at(key)(args...);
+    }
 
-    public:
-        /**
-         * Registers the function to create the object.
-         * If that behavior is desired, create an unregister function
-         *
-         * @return to ensure that static bools can be used with this function to setup the factory
-         */
-        static bool registerCreator(Key&& key, Factory&& factory) {
-            assert(!key.empty());
-            bool result = getMap().insert(std::make_pair(key, std::forward<Factory>(factory))).second;
-            //ensure it doesn't already exist to avoid double inserts
-            assert(result);
-            return true;
-        }
-
-        /**
-         * Returns a nearly created object
-         * Throws if the key cannot be found
-         */
-        template<typename... Args>
-        static ObjectPtr createObject(const Key& key, Args... args) {
-            return getMap().at(key)(args...);
-        }
-
-        static std::string getKeysPretty() {
-            std::string keys;
-            bool first = true;
-            for(auto& i: getMap()) {
-                if(!first)
-                    keys += ", \"" + std::string(i.first) + "\"";
-                else {
-                    keys = "\"" + std::string(i.first) + "\"";
-                    first = false;
-                }
+    static std::string getKeysPretty() {
+        std::string keys;
+        bool first = true;
+        for (auto& i : getMap()) {
+            if (!first)
+                keys += ", \"" + std::string(i.first) + "\"";
+            else {
+                keys = "\"" + std::string(i.first) + "\"";
+                first = false;
             }
-            return keys;
         }
+        return keys;
+    }
 
-        static bool verifyKey(const Key& key) {
-            return (getMap().find(key) != getMap().end());
-        }
-    };
+    static bool verifyKey(const Key& key) {
+        return (getMap().find(key) != getMap().end());
+    }
+};
 
-
-    template<typename ObjectPtr,
-        typename Factory,
-        typename Key = std::string,
+template<typename ObjectPtr, typename Factory, typename Key = std::string,
         typename Map = std::unordered_map<Key, Factory>> using
-            RegisterFactory = RegisterFactoryImpl<ObjectPtr, Factory, Key, Map>;
+RegisterFactory = RegisterFactoryImpl<ObjectPtr, Factory, Key, Map>;
 
 }  //namespace tools
-
 

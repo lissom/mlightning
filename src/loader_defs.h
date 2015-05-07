@@ -20,11 +20,48 @@
 #include "mongo_cxxdriver.h"
 
 namespace loader {
-    using Bson = mongo::BSONObj;
-    using BsonV = std::vector<mongo::BSONObj>;
-    using BsonQ = std::deque<mongo::BSONObj>;
-    using BsonPairDeque = std::deque<std::pair<mongo::BSONObj, mongo::BSONObj>>;
-    using LoadQueues = std::vector<std::string>;
-}  //namespace loader
+using Bson = mongo::BSONObj;
+using BsonV = std::vector<mongo::BSONObj>;
+using BsonQ = std::deque<mongo::BSONObj>;
+using BsonPairDeque = std::deque<std::pair<mongo::BSONObj, mongo::BSONObj>>;
+using LoadQueues = std::vector<std::string>;
 
+const char SHARDED_SPLITS_AUTO[] = "auto";
+const char SHARDED_SPLITS_NONE[] = "none";
+const char SHARDED_SPLITS_FORCE[] = "force";
+const std::string SHARDED_SPLITS[] = { SHARDED_SPLITS_AUTO, SHARDED_SPLITS_NONE, SHARDED_SPLITS_FORCE };
+
+/*
+ * These enums are written to the file system, the value/ type cannot be safely changed
+ */
+enum class FileChunkFormat
+    : uint8_t {none = 0, snappy = 1
+};
+const FileChunkFormat DEFAULT_COMPRESSION = FileChunkFormat::snappy;
+enum class FileChunkType
+    : uint8_t {data = 0
+};
+//bsonspec.org defines the size of a bson object as 32 bit integer
+using BsonSize = int32_t;
+/*
+ * end file system enums
+ */
+
+/*
+ * Output Types
+ */
+const char OUTPUT_FILE[] = "mltn";
+const char OUTPUT_MONGO[] = "mongo";
+/*
+ * Input types
+ */
+/*extern const char MONGO_CLUSTER_INPUT[];
+ extern const char JSON_INPUT[];
+ extern const char BSON_INPUT[];*/
+const char INPUT_MONGO[] = "mongo";
+const char INPUT_JSON[] = "json";
+const char INPUT_BSON[] = "bson";
+//covers all formats that mLightning creates
+const char INPUT_MLTN[] = "mltn";
+}  //namespace loader
 

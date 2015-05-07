@@ -30,6 +30,12 @@ mlightning --shardKey '{"new_key":"hashed"}' --output.uri mongodb://127.0.0.1:27
 #### Reshard to revert back to the orginal key
 mlightning --shardKey '{"_id":"hashed"}' --output.uri mongodb://127.0.0.1:27017 --output.direct 0 --output.db mirror --output.coll mirror --input.uri mongodb://127.0.0.1:27017 --input.db trans --input.coll trans --dropDb 1
 
+### Dump a collection to mLightning's format (allows for very fast restores)
+mlightning --input.uri mongodb://127.0.0.1:27017 --input.direct 1 --input.db mirror --input.coll mirror --outputType mltn --workPath /tmp/mlightning_test/
+
+### Restore a collection from mLightning's format (shard key not required for a non-sharded output)
+mlightning --shardKey '{"_id":"hashed"}' --output.uri mongodb://127.0.0.1:27018 --output.direct 1 --output.db mltnimport --output.coll mirror --inputType mltn --loadPath /tmp/mlightning_test/
+
 #### Verify collections are the same
 Please note that this assumes the same chunks are on each shard.  If this is note the case then this test for sameness will not work.  This is usually the case, but sometimes initial chunk distribution can have issues.
 The counts on all collection should be the same (when issued from a mongoS).

@@ -17,18 +17,24 @@
 
 namespace tools {
 
-    template< typename in, typename out>
-    class Pipeline {
-    public:
-        enum class State { active, pause, complete };
-
-        State state() { return _state; }
-        void pressure(int pressure) { _pressure = pressure; }
-
-    private:
-        State _state;
-        int _pressure;
+template<typename in, typename out>
+class Pipeline {
+public:
+    enum class State {
+        active, pause, complete
     };
+
+    State state() {
+        return _state;
+    }
+    void pressure(int pressure) {
+        _pressure = pressure;
+    }
+
+private:
+    State _state;
+    int _pressure;
+};
 
 } /* namespace tools */
 
