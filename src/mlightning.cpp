@@ -21,28 +21,29 @@
 
 /**
  * Main todo:
+ * # tailing dump and restore
+ * # presplits
+ * # dump/restore everything
+ * # merge dump/restore into one file
+ * # auth
  * # Create collections with the _id index and build it after {autoIndexId: false}
  * # Abstract the output
- * # drop shardkey index and then build then build afterward in the foreground
- * # auth
+ * # drop shard key index and then build afterward in the foreground
  * # continue on error (currently setup for shoot out mode)
  * # support mongoS string (or old style)
- * # compression
- * # disk queues
  * # _id optimizations (drop, insert at end point, etc)
- * # moving index fields forward
+ * # move index fields forward
  * # transforms
- * # support M to N moves
  */
 int main(int argc, char* argv[]) {
     int returnValue = EXIT_SUCCESS;
-
-    //C++ Driver
-    mongo::client::initialize();
-
     //Read settings, then hand those settings off to the loader.
     loader::Loader::Settings settings;
     loader::setProgramOptions(settings, argc, argv);
+    //C++ Driver
+    //mongo::client::Options
+    mongo::client::initialize();
+
     try {
         settings.process();
     } catch (std::exception &e) {
