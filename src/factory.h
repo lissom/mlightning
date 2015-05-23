@@ -24,7 +24,25 @@
 namespace tools {
 /*
  * Factory template
- * This factor template is never meant to be concrete
+ * This factory template is never meant to be concrete, templates "namespace" and statics
+ * Assumes all initializations are before main, this is meant to be part of the type system
+ * (i.e. this is only thread safe for reads)
+ *
+ * Example Usage:
+
+//Factory return type
+using FooPtr = std::unique_ptr<Foo>;
+
+//Factory function signature
+using FooCreator =
+std::function<FooPtr(type1 arg1, type2 arg2)>;
+
+//Factory
+using FooFactory = tools::RegisterFactory<FooPtr, FooCreator>;
+
+//register the type creation function
+static const bool Foo_X::_registerFactory = FooFactory::registerCreator(CONST_KEY_Foo_X,
+    &Foo_X::create);
  */
 template<typename ObjectPtr, typename Factory, typename Key, typename Map>
 class RegisterFactoryImpl {
@@ -37,9 +55,7 @@ class RegisterFactoryImpl {
 
 public:
     /**
-     * Registers the function to create the object.
-     * If that behavior is desired, create an unregister function
-     *
+     * Registers the function to create the type
      * @return to ensure that static bools can be used with this function to setup the factory
      */
     static bool registerCreator(Key&& key, Factory&& factory) {
@@ -47,15 +63,16 @@ public:
         bool result = getMap().insert(std::make_pair(key, std::forward<Factory>(factory))).second;
         //ensure it doesn't already exist to avoid double inserts
         assert(result);
-        return true;
+        return result;
+
     }
 
     /**
-     * Returns a nearly created object
+     * Returns a newly created object
      * Throws if the key cannot be found
      */
-    template<typename ... Args>
-    static ObjectPtr createObject(const Key& key, Args ... args) {
+    template<typename ...Args>
+    static ObjectPtr createObject(const Key& key, Args... args) {
         return getMap().at(key)(args...);
     }
 
