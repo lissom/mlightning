@@ -49,41 +49,41 @@ inline size_t getTotalSystemMemory()
 }
 #endif
 
+template <typename Key, typename Value>
+struct SortType {
+    Key key;
+    Value value;
+
+    bool operator<(const SortType<Key, Value>& rhs) {
+        return key < rhs.key;;
+    }
+};
+
 /**
  * Sfinae true/false
  */
-struct SfinaeTypes {
-    typedef char one;
-    typedef struct {
-        char arr[2];
-    } two;
-};
 
 /*
- * Checks if a class tree has a shift left operator, e.g. <<
+ * Checks if a class tree has a shift left stream operator, e.g. <<
  */
 template<typename T>
-class HasShiftLeftImpl: public SfinaeTypes {
-    struct BaseMixin {
-        friend std::ostream& operator<<(T t, std::ostream& o) {
-            return o;
-        }
+class HasStreamOutImpl {
+    typedef char one;
+    struct two { one two_[2];
     };
 
-    struct Base: public T, public BaseMixin {
-    };
-    template<typename H, H h> class Helper {
-    };
     template<typename U>
-    static constexpr two deduce(U*, Helper<void (BaseMixin::*)(), &U::operator<<>* = 0);
-    static constexpr one deduce(...);
+    static one check(decltype(&U::operator<<));
+    template<typename U>
+    static two check(...);
 
 public:
-    static constexpr bool value = sizeof(one) == sizeof(deduce((Base*) (0)));
+    static constexpr bool value = sizeof(one) == sizeof(check<T>(0));
 };
 
 template<typename T>
-class HasShiftLeft: public HasShiftLeftImpl<T> {
+constexpr bool has_stream_operator() {
+    return HasStreamOutImpl<T>::value;
 };
 
 /**
