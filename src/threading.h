@@ -31,24 +31,6 @@ typedef std::function<void()> ThreadFunction;
 typedef std::condition_variable ConditionVariable;
 typedef std::unique_lock<std::mutex> MutexUniqueLock;
 
-//TODO: refactor everything to PIMPL
-class ThreadPool;
-
-/**
- * Thread pool worker thread, shouldn't exist outside of threadpool
- */
-class ThreadPoolWorker {
-public:
-    ThreadPoolWorker(ThreadPool& pool) :
-            _pool(pool) {
-    }
-
-    void operator()();
-
-private:
-    ThreadPool &_pool;
-};
-
 /**
  * Basic thread management object.
  * Accepts work functions and runs threads against them serially
@@ -62,7 +44,7 @@ public:
     ThreadPool(size_t size) :
             _status(Status::running) {
         do {
-            _threads.push_back(std::thread(ThreadPoolWorker(*this)));
+            _threads.push_back(std::thread([this]{_workLoop();}));
         } while (--size);
     }
 
@@ -190,10 +172,6 @@ private:
     mutable ConditionVariable _workNotify;
     std::deque<ThreadFunction> _workQueue;
 };
-
-inline void ThreadPoolWorker::operator()() {
-    _pool._workLoop();
-}
 
 /**
  * Wait queue.  If the queue is empty consumers wait, if it is at the max producers wait.
