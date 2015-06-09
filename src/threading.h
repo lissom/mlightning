@@ -16,7 +16,6 @@
 #pragma once
 
 #include <atomic>
-#include <assert.h>
 #include <condition_variable>
 #include <deque>
 #include <mutex>
