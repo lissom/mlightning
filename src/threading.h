@@ -162,7 +162,6 @@ public:
     }
 
 private:
-    friend class ThreadPoolWorker;
     void _workLoop();
 
     std::atomic<Status> _status;
