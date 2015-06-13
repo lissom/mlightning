@@ -66,16 +66,15 @@ struct SortType {
 /*
  * Checks if a class tree has a shift left stream operator, e.g. <<
  */
-template<typename T>
-class HasStreamOutImpl {
-    typedef char one;
-    struct two { one two_[2];
-    };
+struct SfinaeTypes {
+    using one = char;
+    using two = struct { char arr[2]; };
+};
 
-    template<typename U>
-    static one check(decltype(&U::operator<<));
-    template<typename U>
-    static two check(...);
+template<typename T>
+class HasStreamOutImpl : public SfinaeTypes{
+    template<typename U> static one check(decltype(&U::operator<<));
+    template<typename U> static two check(...);
 
 public:
     static constexpr bool value = sizeof(one) == sizeof(check<T>(0));
