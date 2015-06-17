@@ -25,8 +25,8 @@ namespace tools {
 /*
  * Factory template
  * This factory template is never meant to be concrete, templates "namespace" and statics
- * Assumes all initializations are before main, this is meant to be part of the type system
- * (i.e. this is only thread safe for reads)
+ * Assumes all initializations are before use, this is meant to be part of the type system
+ * (i.e. only thread safe for reads)
  *
  * Example Usage:
 
