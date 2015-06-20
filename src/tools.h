@@ -80,7 +80,7 @@ static_assert(HasAnyFooFunc<StaticHasFoo>::value, "Helper failed to detect stati
 static_assert(!HasAnyFooFunc<NoFoo>::value, "Helper failed to detect foo() doesn't exist");
 
 /*
- * Detects if an object has a signature.
+ * Detects if an object has a function signature
  * Only visible functions can be detected
  * For instance, to detect if an object has a toString function:
  * class MyObj { public: std::string toString(); };
