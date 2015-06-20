@@ -64,9 +64,6 @@ struct SortType {
  */
 
 /*
- * Checks if a class tree has a shift left stream operator, e.g. <<
- */
-/*
  * Good for detecting functions that should be void, but have default arguments...
  */
 #define OBJECT_HAS_FUNCTION(traitName, funcName) \
