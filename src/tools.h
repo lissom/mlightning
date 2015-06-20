@@ -59,10 +59,6 @@ struct SortType {
     }
 };
 
-/**
- * Sfinae true/false
- */
-
 /*
  * Good for detecting functions that should be void, but have default arguments...
  */
