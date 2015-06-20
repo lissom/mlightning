@@ -66,24 +66,58 @@ struct SortType {
 /*
  * Checks if a class tree has a shift left stream operator, e.g. <<
  */
-struct SfinaeTypes {
-    using one = char;
-    using two = struct { char arr[2]; };
+/*
+ * Good for detecting functions that should be void, but have default arguments...
+ */
+#define OBJECT_HAS_FUNCTION(traitName, funcName) \
+template<typename T> \
+class traitName { \
+    template<typename U> static std::true_type check(decltype(&U::funcName)); \
+    template<typename U> static std::false_type check(...); \
+public: \
+    static constexpr bool value = decltype(check<T>(0))::value; \
 };
 
-template<typename T>
-class HasStreamOutImpl : public SfinaeTypes{
-    template<typename U> static one check(decltype(&U::operator<<));
-    template<typename U> static two check(...);
+OBJECT_HAS_FUNCTION(HasAnyFooFunc, foo)
+struct HasFoo { void foo(int, int); };
+struct StaticHasFoo { static void foo(int, int); };
+struct NoFoo { };
+static_assert(HasAnyFooFunc<HasFoo>::value, "Helper failed to detect foo() exists");
+static_assert(HasAnyFooFunc<StaticHasFoo>::value, "Helper failed to detect static foo() exist");
+static_assert(!HasAnyFooFunc<NoFoo>::value, "Helper failed to detect foo() doesn't exist");
 
-public:
-    static constexpr bool value = sizeof(one) == sizeof(check<T>(0));
+/*
+ * Detects if an object has a signature.
+ * Only visible functions can be detected
+ * For instance, to detect if an object has a toString function:
+ * class MyObj { public: std::string toString(); };
+ * OBJECT_HAS_FUNCTION_SIGNATURE(HasToString, toString, std::string, void)
+ */
+#define OBJECT_HAS_FUNCTION_SIGNATURE(traitName, funcName, funcRet, args...) \
+template<typename T> \
+class traitName { \
+    template<typename U, U> struct helper; \
+    template<typename U> static std::true_type check(helper<funcRet(U::*)(args), &U::funcName>*); \
+    template<typename U> static std::false_type check(...); \
+public: \
+    static constexpr bool value = decltype(check<T>(0))::value; \
 };
 
-template<typename T>
-constexpr bool has_stream_operator() {
-    return HasStreamOutImpl<T>::value;
-};
+
+OBJECT_HAS_FUNCTION_SIGNATURE(HasToStringFunc, toString, std::string, void)
+struct HasToString { std::string toString(); };
+struct StaticHasToString { static std::string toString(); };
+struct NoHasToString { };
+
+static_assert(HasToStringFunc<HasToString>::value, "Helper failed to detect HasToString() exists");
+static_assert(!HasToStringFunc<StaticHasToString>::value, "Helper failed to detect non-static HasToString() doesn't exist");
+static_assert(!HasToStringFunc<NoHasToString>::value, "Helper failed to detect HasToString() doesn't exist");
+
+OBJECT_HAS_FUNCTION_SIGNATURE(HasFooFunc, foo, void, int, int)
+
+static_assert(HasFooFunc<HasFoo>::value, "Helper failed to detect foo() exists");
+static_assert(!HasFooFunc<StaticHasFoo>::value, "Helper failed to detect non-static foo() doesn't exist");
+static_assert(!HasFooFunc<NoFoo>::value, "Helper failed to detect foo() doesn't exist");
 
 /**
  * Simple timer
