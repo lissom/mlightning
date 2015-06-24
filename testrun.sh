@@ -207,6 +207,8 @@ fi
 replicatests() {
 printf "\nStarting Replica Tests\n"
 SHARDED=0
+#Assuming we started a sharded cluster to begin with, removing mongoS
+pkill mongos
 MONGO1=127.0.0.1:27018
 MONGO2=$MONGO1
 runloadingtest

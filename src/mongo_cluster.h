@@ -125,7 +125,7 @@ public:
     using TagBsonIndex = tools::Index<ChunkIndexKey, TagRange, mtools::BsonCompare>;
     using NsTagUBIndex = std::unordered_map<NameSpace, TagBsonIndex>;
     using Mongos = std::vector<std::string>;
-    MongoCluster() = delete;
+    MongoCluster() { }
     explicit MongoCluster(const std::string& conn);
     virtual ~MongoCluster();
 

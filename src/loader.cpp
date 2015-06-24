@@ -74,16 +74,22 @@ void Loader::Settings::process() {
         }
     }
 
-    if (outputType == OUTPUT_MONGO)
+    if (outputType == OUTPUT_MONGO) {
         try {
             output.validate();
+            if (shardKeyJson.empty()) {
+                std::cerr << "Warning: No shard key found, assuming _id : hashed (ignore if this is"
+                        " a replica set only)" << std::endl;
+                shardKeyJson = R"({ "_id" : "hashed" })";
+            }
         } catch (std::exception &e) {
             std::cerr << "Unable to validate output cluster: " << e.what() << std::endl;
             exit(EXIT_FAILURE);
         }
+    }
     else {
         //For all file output formats use hashed _id if the user hasn't given a different key
-        output.database = "mlightning";
+        output.database = "mlightning_synth";
         output.collection = "mlightning_synth";
         if (shardKeyJson.empty())
             shardKeyJson = R"({ "_id" : "hashed" })";
@@ -100,6 +106,8 @@ void Loader::Settings::process() {
             exit(EXIT_FAILURE);
         }
     }
+
+    parseShardKey();
 
     //If the input type is a cluster there is no directory given, validate cluster input
     if (inputType == INPUT_MONGO || loadPath.empty()) {
@@ -121,8 +129,6 @@ void Loader::Settings::process() {
             exit(EXIT_FAILURE);
         }
     }
-
-    parseShardKey();
 
     output.endPoints.startImmediate = false;
     input.endPoints.startImmediate = true;
@@ -200,6 +206,8 @@ Loader::Loader(Settings settings) :
                 tools::getTotalSystemMemory()) {
     if (_settings.outputType == OUTPUT_MONGO)
         _mCluster.reset(new mtools::MongoCluster(_settings.output.uri));
+    else
+        _mCluster.reset(new mtools::MongoCluster());
 }
 
 void Loader::setupOutputCluster() {
@@ -342,7 +350,7 @@ void Loader::dump() {
     _mCluster->shards().insert(std::make_pair("mlSynth", "mlSynth"));
     //Create the splits to setup the file write by creating a synthetic output namespace
     _mCluster->syntheticShardCollection(_settings.output.ns(), _settings.shardKeyBson,
-    false, _settings.threads);
+            false, _settings.threads);
     //Setup the file write
     _chunkDispatch.reset(
             new dispatch::ChunkDispatcher(_settings.dispatchSettings, cluster(), nullptr,
