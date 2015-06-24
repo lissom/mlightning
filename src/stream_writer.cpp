@@ -30,14 +30,18 @@ void writeToStream(std::ostream& out, const FileChunkType blockType, const Seque
     std::string compressed;
     switch (formatType) {
     case FileChunkFormat::none:
+        if (data.len() == 0)
+            throw std::range_error("Data size zero passed to writeToStream");
         metaToStream(out, blockType, sequenceId, formatType, data.len());
         out.write(data.buf(), data.len());
         break;
     case FileChunkFormat::snappy:
-        if (snappy::Compress(data.buf(), data.len(), &compressed) > size_t(data.len() / 9 * 10)) {
-            writeToStream(out, blockType, sequenceId, FileChunkFormat::none, data);
-            break;
-        }
+        size_t compressedSize;
+        compressedSize = snappy::Compress(data.buf(), data.len(), &compressed);
+        if (compressedSize > size_t(data.len() / 9 * 10))
+            return writeToStream(out, blockType, sequenceId, FileChunkFormat::none, data);
+        if (compressedSize == 0)
+            throw std::range_error("Zero compressed size in writeToStream");
         metaToStream(out, blockType, sequenceId, formatType, compressed.size());
         out.write(&compressed[0], compressed.size());
         break;

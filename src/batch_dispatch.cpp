@@ -112,8 +112,11 @@ void DiskQueueBoundedFileDispatch::spill() {
 
     //Grab the current buffer, will return extra at the end
     tools::MutexUniqueLock lock(_mutex);
+    if (_size == 0)
+        return assert(_queue.size() == 0);
     Queue localHolder;
     localHolder.swap(_queue);
+    //Can race to this point, so return if this thread lost the race
     _size = 0;
     lock.unlock();
 
