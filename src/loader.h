@@ -138,7 +138,7 @@ public:
     explicit Loader(Settings settings);
     ~Loader() {
         if (_disableCollectionBalancing)
-            _mCluster.enableBalancing(_settings.output.ns());
+            _mCluster->enableBalancing(_settings.output.ns());
     }
 
     /**
@@ -153,14 +153,14 @@ public:
      * Must be read only in multithreaded mode
      */
     mtools::MongoCluster& cluster() {
-        return _mCluster;
+        return *_mCluster;
     }
 
     /**
      * Returns the ChunkDispatcher queues
      */
     dispatch::ChunkDispatcher& chunkDispatcher() {
-        return *_chunkDispatch.get();
+        return *_chunkDispatch;
     }
 
     /**
@@ -187,7 +187,7 @@ private:
 
     LoaderStats _stats;
     const Settings _settings;
-    mtools::MongoCluster _mCluster;
+    std::unique_ptr<mtools::MongoCluster> _mCluster;
     std::unique_ptr<EndPointHolder> _endPoints;
     std::unique_ptr<dispatch::ChunkDispatcher> _chunkDispatch;
     tools::SimpleTimer<> _timerSetup;
@@ -238,7 +238,7 @@ private:
      * Resolves a connection for a shard
      */
     const std::string& getConn(const std::string& shard) {
-        return this->_mCluster.getConn(shard);
+        return this->_mCluster->getConn(shard);
     }
 };
 }  //namespace loader

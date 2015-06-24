@@ -35,6 +35,8 @@
 namespace loader {
 
 void Loader::Settings::process() {
+    std::transform(outputType.begin(), outputType.end(), outputType.begin(), ::tolower);
+    std::transform(inputType.begin(), inputType.end(), inputType.begin(), ::tolower);
     bool found = false;
     for (auto&& value : SHARDED_SPLITS) {
         if (value == splitVector) {
@@ -194,23 +196,25 @@ void Loader::Settings::parseShardKey() {
 }
 
 Loader::Loader(Settings settings) :
-        _settings(std::move(settings)), _mCluster(_settings.output.uri), _ramMax(
+        _settings(std::move(settings)), _ramMax(
                 tools::getTotalSystemMemory()) {
+    if (_settings.outputType == OUTPUT_MONGO)
+        _mCluster.reset(new mtools::MongoCluster(_settings.output.uri));
 }
 
 void Loader::setupOutputCluster() {
     //The only valid shardkey without a sharded cluster is _id
-    if (_mCluster.sharded()) {
+    if (_mCluster->sharded()) {
         if (_settings.shardKeyJson.empty()) {
             std::cerr << "Unable to load sharded cluster metadata, this is required for a"
                     " sharded cluster load" << std::endl;
             exit(EXIT_FAILURE);
         }
         if (_settings.output.stopBalancer)
-            _mCluster.stopBalancer();
-        _disableCollectionBalancing = _mCluster.isBalancingEnabled(_settings.output.ns());
+            _mCluster->stopBalancer();
+        _disableCollectionBalancing = _mCluster->isBalancingEnabled(_settings.output.ns());
         if (_disableCollectionBalancing) {
-            if (!_mCluster.disableBalancing(_settings.output.ns())) {
+            if (!_mCluster->disableBalancing(_settings.output.ns())) {
                 std::cerr << "Unable to disable balancing for ns: " << _settings.output.ns()
                         << std::endl;
                 exit(EXIT_FAILURE);
@@ -247,23 +251,23 @@ void Loader::setupOutputCluster() {
         conn->dropIndexes(_settings.output.ns());
     }
 
-    if (_mCluster.sharded()) {
+    if (_mCluster->sharded()) {
         if (_settings.output.stopBalancer)
-            if (_mCluster.stopBalancerWait(std::chrono::seconds(120))) {
+            if (_mCluster->stopBalancerWait(std::chrono::seconds(120))) {
                 std::cerr << "Unable to stop the balancer" << std::endl;
                 exit(EXIT_FAILURE);
             }
         //TODO: make these checks more sophisticated (i.e. conditions already true? success!)
         mongo::BSONObj info;
-        if (!_mCluster.enableSharding(_settings.output.database, info)) {
+        if (!_mCluster->enableSharding(_settings.output.database, info)) {
             if (info.getIntField("ok") != 1)
                 std::cerr << "Sharding db failed: " << info << std::endl;
             info = mongo::BSONObj().getOwned();
         }
         assert(_settings.chunksPerShard > 0);
         if (_settings.hashed) {
-            int totalChunks = _settings.chunksPerShard * _mCluster.shards().size();
-            if (!_mCluster.shardCollection(_settings.output.ns(), _settings.shardKeyBson,
+            int totalChunks = _settings.chunksPerShard * _mCluster->shards().size();
+            if (!_mCluster->shardCollection(_settings.output.ns(), _settings.shardKeyBson,
                     _settings.shardKeyUnique, totalChunks, info)) {
                 //The collection already being sharded is only an error if it was supposed to be dropped
                 std::string strerror = info.getStringField("errmsg");
@@ -276,10 +280,10 @@ void Loader::setupOutputCluster() {
                     exit(EXIT_FAILURE);
                 }
             }
-            _mCluster.waitForChunksPerShard(_settings.output.ns(), _settings.chunksPerShard);
+            _mCluster->waitForChunksPerShard(_settings.output.ns(), _settings.chunksPerShard);
         } else {
             //Don't do presplits for non-hashed here, no idea what the data is yet
-            if (!_mCluster.shardCollection(_settings.output.ns(), _settings.shardKeyBson,
+            if (!_mCluster->shardCollection(_settings.output.ns(), _settings.shardKeyBson,
                     _settings.shardKeyUnique, info)) {
                 //The collection already being sharded is only an error if it was supposed to be dropped
                 std::string strerror = info.getStringField("errmsg");
@@ -293,10 +297,10 @@ void Loader::setupOutputCluster() {
             }
         }
         //Capture sharded changes if we hashed, etc
-        _mCluster.loadCluster();
+        _mCluster->loadCluster();
     } else {
         //For unshared collections
-        _mCluster.syntheticShardCollection(_settings.output.ns(), _settings.shardKeyBson, true, 1);
+        _mCluster->syntheticShardCollection(_settings.output.ns(), _settings.shardKeyBson, true, 1);
     }
 
     _endPoints.reset(new EndPointHolder(_settings.output.endPoints, cluster()));
@@ -335,9 +339,9 @@ void Loader::dump() {
 
     //create a fake output cluster for breaking up the output
     //Create a single fake shard
-    _mCluster.shards().insert(std::make_pair("mlSynth", "mlSynth"));
+    _mCluster->shards().insert(std::make_pair("mlSynth", "mlSynth"));
     //Create the splits to setup the file write by creating a synthetic output namespace
-    _mCluster.syntheticShardCollection(_settings.output.ns(), _settings.shardKeyBson,
+    _mCluster->syntheticShardCollection(_settings.output.ns(), _settings.shardKeyBson,
     false, _settings.threads);
     //Setup the file write
     _chunkDispatch.reset(

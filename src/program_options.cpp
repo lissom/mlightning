@@ -85,7 +85,7 @@ void setProgramOptions(Loader::Settings& settings, int argc, char* argv[]) {
         ("inputType,T", po::value<std::string>(&settings.inputType)->default_value("json"),
                 supportedInputTypes.c_str())
         ("outputType,O", po::value<std::string>(&settings.outputType)->default_value("mongo"),
-                            "Either mongo or file, defaults to mongo")
+                            "Either \"mongo\" or \"mltn\" defaults to mongo")
         ("loadPath,p", po::value<std::string>(&settings.loadPath),
                 "directory to load files from")
         ("fileRegex,r", po::value<std::string>(&settings.fileRegex),
