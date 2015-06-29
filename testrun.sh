@@ -21,6 +21,7 @@ DIRECT_FINAL_OUT=0
 SUCCESS='\033[1;34m'
 FAILURE='\033[0;31m'
 TESTLINE='\033[0;32m'
+TESTTYPE='\033[4;33m'
 NOCOLOR='\033[0m'
 #
 #Start functions
@@ -84,7 +85,7 @@ runtest "Reverting back to original shard key" ${ML_PATH}mlightning ${OPTIONS} -
 
 #TODO: pump this into /tmp and use sed to set the variables
 if [ "${MONGO1}" = "${MONGO2}" ]; then
-runtest "Verifing restarding (The verify is only valid if all operations have taken place on the 127.0.0.1:27017 or the first shard of the cluster)" mongo ${MONOG1} --norc << EOF
+runtest "Verifing resharding (The verify is only valid if all operations have taken place on the 127.0.0.1:27017 or the first shard of the cluster)" mongo ${MONOG1} --norc << EOF
 var sourcedb="import"
 var sourcecoll="original"
 var targetdb="mirror"
@@ -193,7 +194,7 @@ fi
 
 shardedtests()
 {
-printf "\nStarting Sharded Tests\n"
+printf "${TESTTYPE}\nStarting Sharded Tests${NOCOLOR}\n"
 SHARDED=1
 MONGO1=127.0.0.1:27017
 MONGO2=${MONGO1}
@@ -205,10 +206,9 @@ fi
 }
 
 replicatests() {
-printf "\nStarting Replica Tests\n"
+printf "${TESTTYPE}\nStarting Replica Tests${NOCOLOR}\n"
 SHARDED=0
 #Assuming we started a sharded cluster to begin with, removing mongoS
-pkill mongos
 MONGO1=127.0.0.1:27018
 MONGO2=$MONGO1
 runloadingtest
@@ -222,7 +222,7 @@ fi
 #Start run
 #
 shardedtests
-replicatests
+#replicatests
 
 printf "\nThere are no tests for unsharded collections in a sharded cluster\n"
 

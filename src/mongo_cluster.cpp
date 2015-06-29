@@ -325,6 +325,7 @@ void MongoCluster::waitForChunksPerShard(std::string ns, int chunksPerShard) {
                 continue;
             }
         }
+        //TODO: Test for chunks with zero shards and establish upper/lower limits
     } while (!done);
 }
 
