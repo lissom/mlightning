@@ -47,7 +47,7 @@ void setClusterOptions(const std::string& prefix,
         (std::string(prefix + "batchMaxQueue").c_str(), po::value<size_t>(&clusterSettings->endPoints.maxQueueSize)
                 ->default_value(100), "End point queue size")
         (std::string(prefix + "threads").c_str(), po::value<size_t>(&clusterSettings->endPoints.threadCount)
-                ->default_value(2), "Threads per end point")
+                ->default_value(64), "Threads per end point")
         /*(std::string(prefix + "locklessMissWait").c_str(), po::value<size_t>(&endPointSettings->sleepTime)
                 ->default_value(10), "Lockless end points miss wait")*/;
     // @formatter:on
