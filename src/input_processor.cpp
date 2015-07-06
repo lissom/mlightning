@@ -403,7 +403,14 @@ void DocumentProcessor::process() {
         }
         //TODO: continue on error: convert to log message if continue
         else {
-            std::cerr << "No shard key in final doc for insert: " << doc << std::endl;
+            std::cerr << "No shard key in final doc for insert";
+            if (!_added_id) {
+                mongo::BSONElement e = doc["_id"];
+                if (e.type()) {
+                    std::cerr << " _id: " << e;
+                }
+            }
+            std::cerr << std::endl;
             exit(EXIT_FAILURE);
         }
     }
