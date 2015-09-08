@@ -78,7 +78,7 @@ public:
     bool Null() {
         switch (_state) {
         case Value:
-            _bob->appendNull();
+            _bob->appendNull(_field);
             _state = Field;
             return true;
         default:
